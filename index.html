@@ -1,0 +1,1670 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Panel de vida</title>
+<!-- Panel de vida: un solo archivo que se abre en cualquier navegador.
+     Hoy       = cronología del día con marcas.
+     Planear   = agregar tareas y lugares por la noche, y optimizar el trayecto.
+     Mes       = tabla mensual con un marcador por tarea fija.
+     Estadísticas = éxito, no cumplido y tareas más débiles. Todo comparte las mismas marcas. -->
+<style>
+/* Modo claro: blanco + azul. Modo oscuro: negro + naranja. Acentos, pestañas y marcos usan el color secundario. */
+:root, :root[data-theme="light"]{
+  --bg:#F3F7FD; --surface:#FFFFFF; --ink:#0E2A47; --ink-soft:#5A6F88; --line:#C7D9EE;
+  --accent:#2F6FC0; --accent-soft:#E4EEFA; --done-ink:#FFFFFF; --miss-bg:#E4ECF7; --miss-ink:#4A6284;
+  --track:#E1EAF6;
+  color-scheme: light;
+}
+:root[data-theme="dark"]{
+  --bg:#0A0A0A; --surface:#141414; --ink:#F4F4F4; --ink-soft:#A8A8A8; --line:#5C3A14;
+  --accent:#FF8A1F; --accent-soft:#2A1A0B; --done-ink:#0A0A0A; --miss-bg:#262626; --miss-ink:#B5B5B5;
+  --track:#262626;
+  color-scheme: dark;
+}
+.hdrRow{display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap}
+.switch{display:inline-flex; align-items:center; gap:8px; cursor:pointer; font:inherit; font-size:13px; color:var(--ink-soft); background:none; border:none; padding:0; margin-top:4px; user-select:none}
+.switch .track2{width:42px; height:22px; border-radius:999px; background:var(--track); border:1px solid var(--line); position:relative; transition:background .2s; flex:0 0 auto}
+.switch .track2::after{content:""; position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%; background:var(--accent); transition:transform .2s}
+.switch[aria-checked="true"] .track2::after{transform:translateX(20px)}
+.switch:focus-visible{outline:2px solid var(--accent); outline-offset:3px; border-radius:6px}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font:15px/1.5 -apple-system,"Segoe UI",system-ui,sans-serif;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap{max-width:1040px; margin:0 auto; padding-block:24px 56px}
+h1{font-size:26px; margin:0; letter-spacing:-0.01em; text-wrap:balance}
+.sub{margin:4px 0 0; color:var(--ink-soft)}
+.tabs{display:flex; gap:4px; margin-top:20px; border-bottom:1px solid var(--line); overflow-x:auto}
+.tab{font:inherit; background:none; border:none; padding:10px 14px; color:var(--ink-soft); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; white-space:nowrap}
+.tab[aria-selected="true"]{color:var(--accent); border-bottom-color:var(--accent); font-weight:600}
+.panel{margin-top:20px}
+.card{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:16px; min-width:0}
+.card + .card{margin-top:16px}
+.toolbar{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:12px}
+.toolbar h2{font-size:18px; margin:0 auto 0 0; text-transform:capitalize}
+.btn{font:inherit; font-size:13px; padding:7px 12px; border-radius:8px; border:1px solid var(--line); background:var(--surface); color:var(--ink); cursor:pointer; text-decoration:none; display:inline-block}
+.btn.primary{background:var(--accent); color:var(--done-ink); border-color:var(--accent)}
+.btn.danger{color:var(--ink-soft)}
+button:focus-visible, input:focus-visible, a:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.muted{color:var(--ink-soft)}
+.sec{font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-soft); margin:0 0 8px; font-weight:600}
+.track{height:9px; background:var(--track); border-radius:999px; overflow:hidden}
+.fill{height:100%; border-radius:999px; background:var(--accent); width:0; transition:width .2s}
+.dayHead{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:10px}
+.dayHead .info{flex:1 1 220px; min-width:0}
+.dayHead h2{font-size:20px; margin:0; text-transform:capitalize; text-wrap:balance}
+.score{font-variant-numeric:tabular-nums; font-size:14px; color:var(--ink-soft); margin-top:2px}
+.pick{display:flex; align-items:center; gap:8px; color:var(--ink-soft); font-size:13px; flex-wrap:wrap}
+input{font:inherit; padding:7px 9px; border-radius:8px; border:1px solid var(--line); background:var(--bg); color:var(--ink); min-width:0}
+.tasks{list-style:none; margin:0; padding:0}
+.tasks li{display:grid; grid-template-columns:auto 96px minmax(0,1fr) auto; gap:10px; align-items:center; padding:9px 0; border-top:1px solid var(--line)}
+.tasks li:first-child{border-top:none}
+.tasks .txt{min-width:0; overflow-wrap:anywhere}
+.tasks .meta{display:block; font-size:12.5px; color:var(--ink-soft)}
+.tasks li.done .txt{color:var(--accent)}
+.tasks li.missed .txt{color:var(--miss-ink); text-decoration:line-through}
+.tin{font-size:13px; padding:5px 6px; width:100%; font-variant-numeric:tabular-nums}
+.src{font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-soft)}
+.del{background:none; border:none; color:var(--ink-soft); cursor:pointer; font-size:20px; line-height:1; padding:0 4px}
+.mk{width:32px; height:32px; border-radius:8px; border:1px solid var(--line); background:var(--surface); color:var(--ink-soft); cursor:pointer; font:inherit; font-weight:700}
+.mk.done{background:var(--accent); color:var(--done-ink); border-color:var(--accent)}
+.mk.missed{background:var(--miss-bg); color:var(--miss-ink); border-color:transparent}
+.formGrid{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin-top:12px}
+.formGrid .wide{grid-column:span 2}
+.formGrid input{width:100%}
+.formRow{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:12px}
+.pendRow{display:flex; justify-content:space-between; gap:10px; align-items:center; padding:8px 0; border-top:1px solid var(--line); font-size:14px}
+.pendRow:first-child{border-top:none}
+.linkBtn, .dayBtn{font:inherit; background:none; border:none; color:var(--accent); cursor:pointer; padding:2px 0; text-decoration:underline dotted var(--ink-soft); text-align:left}
+.tablewrap{overflow-x:auto; border:1px solid var(--line); border-radius:12px; background:var(--surface)}
+table.grid{border-collapse:collapse; width:100%; min-width:1280px; font-size:13px}
+.grid th, .grid td{padding:6px 3px; border-bottom:1px solid var(--line); text-align:center; white-space:nowrap}
+.grid thead th{font-weight:600; color:var(--ink-soft); font-size:11.5px; background:var(--surface); position:sticky; top:0}
+.grid th.row{text-align:left; padding-left:12px; color:var(--ink)}
+.grid tbody tr:last-child td, .grid tbody tr:last-child th{border-bottom:none}
+.grid tr.today .dayBtn{font-weight:700}
+.grid tr.sel{background:var(--accent-soft)}
+.grid .mk{width:30px; height:30px}
+.pct{font-variant-numeric:tabular-nums; font-weight:600; color:var(--ink)}
+.legend{font-size:13px; color:var(--ink-soft); margin-top:10px}
+.kpis{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px}
+.kpi{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:14px; min-width:0}
+.kpi b{display:block; font-size:26px; font-variant-numeric:tabular-nums; color:var(--accent)}
+.kpi span{color:var(--ink-soft); font-size:13px}
+.grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px}
+.grid2 > .card{min-width:0}
+.hb{margin-bottom:10px}
+.hb-top{display:flex; justify-content:space-between; gap:8px; font-size:14px}
+.chart{width:100%; height:auto; display:block}
+.chart text{fill:var(--ink-soft); font-size:11px}
+.chart .big{fill:var(--ink); font-size:20px; font-weight:700}
+.donutWrap{display:flex; flex-wrap:wrap; gap:16px; align-items:center}
+.donutWrap > div:last-child{flex:1 1 180px; min-width:0}
+.retro li{margin:6px 0}
+.sw{display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:4px; vertical-align:middle}
+.routeList{list-style:none; margin:0; padding:0}
+.routeList li{display:grid; grid-template-columns:auto 1fr auto; gap:10px; padding:8px 0; border-top:1px solid var(--line); align-items:baseline}
+.routeList li:first-child{border-top:none}
+.routeList .t{font-variant-numeric:tabular-nums; color:var(--accent); font-weight:600}
+.warn{color:var(--miss-ink); font-weight:600}
+.lead{font-size:17px; margin:0; text-wrap:balance}
+.meta{display:block; font-size:12.5px; color:var(--ink-soft)}
+.sub2{font-size:14px; margin:14px 0 6px; font-weight:600}
+.tl{list-style:none; margin:0; padding:0}
+.tl li{display:grid; grid-template-columns:52px minmax(0,1fr); gap:10px; padding:8px 0; border-top:1px solid var(--line)}
+.tl li:first-child{border-top:none}
+.tl li.free{color:var(--ink-soft); font-style:italic}
+.tl .t{font-variant-numeric:tabular-nums; color:var(--accent); font-weight:600}
+.tl .txt{min-width:0; overflow-wrap:anywhere}
+.vtask li{grid-template-columns:auto minmax(0,1fr) 130px auto}
+.vtask li .tdate{font-size:13px; padding:5px 6px; width:100%}
+.vtask li.hecha .txt{text-decoration:line-through}
+.mcard{padding:10px 0; border-top:1px solid var(--line)}
+.mcard:first-child{border-top:none}
+.mcard .src{display:block; margin-bottom:2px}
+.medList{list-style:none; margin:0; padding:0; display:grid; gap:6px}
+.medList li{display:flex; gap:8px; align-items:center}
+.medList .medIn{flex:1 1 auto; min-width:0}
+.alerts{margin:0; padding-left:18px}
+.alerts li{margin:6px 0}
+.okDot{color:var(--accent); font-weight:600}
+@media (max-width:760px){
+  .vtask li{grid-template-columns:auto minmax(0,1fr) auto}
+  .vtask li .tdate{grid-column:2; width:auto}
+}
+details{margin-top:24px; color:var(--ink-soft); font-size:13px}
+details summary{cursor:pointer}
+details textarea{width:100%; min-height:90px; margin-top:8px; font:12px ui-monospace,Menlo,monospace; background:var(--surface); color:var(--ink); border:1px solid var(--line); border-radius:8px; padding:8px}
+.backRow{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:8px}
+@media (max-width:760px){
+  .grid2{grid-template-columns:1fr}
+  .kpis{grid-template-columns:1fr 1fr}
+  .formGrid{grid-template-columns:1fr 1fr}
+  .formGrid .wide{grid-column:span 2}
+  .tasks li{grid-template-columns:auto minmax(0,1fr) auto}
+  .tasks li .tin{grid-column:2; width:auto}
+  .tasks li .txt{grid-column:2}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hdrRow">
+    <div>
+      <h1>Panel de vida</h1>
+      <p class="sub">Marca ✓ hecha, ✕ no hecha, · sin marcar. Por la noche agregas lo de mañana y la app acomoda el trayecto.</p>
+    </div>
+    <button class="switch" id="themeSwitch" type="button" role="switch" aria-checked="false" aria-label="Modo oscuro"><span class="track2" aria-hidden="true"></span><span id="themeLabel">Modo claro</span></button>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Secciones">
+    <button class="tab" role="tab" id="tab-vida" data-tab="vida" aria-selected="true" aria-controls="panel-vida">Mi día</button>
+    <button class="tab" role="tab" id="tab-hoy" data-tab="hoy" aria-selected="false" aria-controls="panel-hoy" tabindex="-1">Hoy</button>
+    <button class="tab" role="tab" id="tab-planear" data-tab="planear" aria-selected="false" aria-controls="panel-planear" tabindex="-1">Planear</button>
+    <button class="tab" role="tab" id="tab-mes" data-tab="mes" aria-selected="false" aria-controls="panel-mes" tabindex="-1">Mes</button>
+    <button class="tab" role="tab" id="tab-stats" data-tab="stats" aria-selected="false" aria-controls="panel-stats" tabindex="-1">Estadísticas</button>
+  </nav>
+
+  <!-- MI DÍA: agenda, correos, tareas, alertas y conexiones (solo lectura de Calendar y Gmail) -->
+  <section class="panel" id="panel-vida" role="tabpanel" aria-labelledby="tab-vida" hidden>
+    <div class="card">
+      <h3 class="sec">Hoy en una línea</h3>
+      <p class="lead" id="oneLiner">Cargando…</p>
+      <div class="formRow" style="margin-top:10px">
+        <button class="btn primary" id="refreshVida">Actualizar calendario y correos</button>
+        <span class="muted">La app solo lee; no envía, borra ni modifica correos ni eventos.</span>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="toolbar">
+        <h3 class="sec" style="margin:0 auto 0 0">Agenda</h3>
+        <label class="pick">Ver
+          <select id="agendaRange" aria-label="Rango de la agenda">
+            <option value="1">Hoy</option>
+            <option value="7">Próximos 7 días</option>
+          </select>
+        </label>
+      </div>
+      <div id="agendaBox"></div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h3 class="sec">Correos de las últimas 48 horas</h3>
+      <div id="mailBox"></div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h3 class="sec">Tareas</h3>
+      <form class="formRow" id="taskForm" style="margin-top:0">
+        <input type="text" id="taskText" placeholder='Escribe una tarea con fecha, ej. "pagar luz el viernes"' aria-label="Nueva tarea" style="flex:1 1 280px" required>
+        <button class="btn primary" type="submit">Crear</button>
+      </form>
+      <div id="taskBox" style="margin-top:8px"></div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h3 class="sec">Alertas cruzadas</h3>
+      <div id="alertBox"></div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h3 class="sec">Estado de conexiones</h3>
+      <div id="connBox"></div>
+      <div class="formRow" style="margin-top:12px">
+        <label class="pick">Remitentes prioritarios (separados por coma)
+          <input type="text" id="prioInput" style="flex:1 1 260px" placeholder="jefe@empresa.com, socio@empresa.com">
+        </label>
+        <button class="btn" id="savePrio">Guardar</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOY -->
+  <section class="panel" id="panel-hoy" role="tabpanel" aria-labelledby="tab-hoy" hidden>
+    <div class="card">
+      <div class="dayHead">
+        <button class="btn" data-shift="-1" aria-label="Día anterior">←</button>
+        <div class="info">
+          <h2 id="dayTitle"></h2>
+          <div class="score" id="dayScore"></div>
+        </div>
+        <button class="btn" data-shift="1" aria-label="Día siguiente">→</button>
+      </div>
+      <div class="toolbar">
+        <button class="btn" id="todayBtn">Hoy</button>
+        <label class="pick">Ir a fecha <input type="date" id="pickDate"></label>
+      </div>
+      <div class="track"><div class="fill" id="dayFill"></div></div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h3 class="sec">Ruta del día</h3>
+      <div id="routeHoy"></div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h3 class="sec">Cronología del día</h3>
+      <ul class="tasks" id="taskList"></ul>
+      <form class="formRow" id="addForm">
+        <input type="time" id="addTime" aria-label="Hora de la tarea">
+        <input type="text" id="addText" placeholder="Agregar tarea a este día" aria-label="Texto de la tarea" required style="flex:1 1 240px">
+        <button class="btn primary" type="submit">Agregar</button>
+      </form>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h3 class="sec">Mis medicinas y suplementos</h3>
+      <p class="muted" style="margin:0 0 8px">Todas van en una sola tarea diaria. Edita un nombre y sal del campo para guardarlo.</p>
+      <ul class="medList" id="medList"></ul>
+      <form class="formRow" id="medForm">
+        <input type="text" id="medNew" placeholder="Agregar medicina o suplemento" aria-label="Nueva medicina o suplemento" required style="flex:1 1 240px">
+        <button class="btn primary" type="submit">Agregar</button>
+      </form>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h3 class="sec">Sin marcar en los últimos 7 días</h3>
+      <div id="pendingList"></div>
+    </div>
+  </section>
+
+  <!-- PLANEAR -->
+  <section class="panel" id="panel-planear" role="tabpanel" aria-labelledby="tab-planear" hidden>
+    <div class="card">
+      <div class="dayHead">
+        <button class="btn" data-shift="-1" aria-label="Día anterior">←</button>
+        <div class="info">
+          <h2 id="planTitle"></h2>
+          <div class="score">Agrega aquí lo de ese día. Lo que tenga lugar con coordenadas se puede acomodar en el trayecto más corto.</div>
+        </div>
+        <button class="btn" data-shift="1" aria-label="Día siguiente">→</button>
+      </div>
+      <div class="formRow">
+        <label class="pick">Fecha <input type="date" id="planDate"></label>
+        <label class="pick">Salgo de casa a las <input type="time" id="startTime"></label>
+        <button class="btn primary" id="optBtn">Optimizar trayecto</button>
+      </div>
+      <div id="routeBox" style="margin-top:14px"></div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h3 class="sec">Casa (punto de partida)</h3>
+      <div id="homeInfo" class="muted"></div>
+      <div class="formRow">
+        <button class="btn" id="homeGeo">Usar mi ubicación como casa</button>
+        <input type="number" step="any" id="homeLat" placeholder="Latitud" aria-label="Latitud de casa" style="width:150px">
+        <input type="number" step="any" id="homeLng" placeholder="Longitud" aria-label="Longitud de casa" style="width:150px">
+        <button class="btn" id="homeSave">Guardar casa</button>
+        <span id="homeMsg" class="muted"></span>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h3 class="sec">Agregar tarea o lugar</h3>
+      <form id="pForm">
+        <div class="formGrid">
+          <input type="text" id="pText" class="wide" placeholder="Qué hay que hacer" aria-label="Qué hacer" required>
+          <input type="time" id="pTime" aria-label="Hora fija (opcional)" title="Hora fija (opcional)">
+          <input type="number" id="pDur" min="0" step="5" value="15" aria-label="Duración en minutos" title="Duración en minutos">
+          <input type="text" id="pName" class="wide" placeholder="Lugar (nombre)" aria-label="Nombre del lugar">
+          <input type="number" step="any" id="pLat" placeholder="Latitud" aria-label="Latitud del lugar">
+          <input type="number" step="any" id="pLng" placeholder="Longitud" aria-label="Longitud del lugar">
+          <input type="time" id="pOpen" aria-label="Abre a las" title="Abre a las">
+          <input type="time" id="pClose" aria-label="Cierra a las" title="Cierra a las">
+        </div>
+        <div class="formRow">
+          <button class="btn primary" type="submit">Agregar</button>
+          <a class="btn" id="findLink" target="_blank" rel="noopener" href="https://www.google.com/maps">Buscar lugar en Google Maps</a>
+          <span class="muted">Para el trayecto, copia la latitud y longitud desde Google Maps (clic derecho sobre el lugar).</span>
+        </div>
+      </form>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h3 class="sec">Tareas de este día</h3>
+      <ul class="tasks" id="planList"></ul>
+    </div>
+  </section>
+
+  <!-- MES -->
+  <section class="panel" id="panel-mes" role="tabpanel" aria-labelledby="tab-mes" hidden>
+    <div class="toolbar">
+      <button class="btn" data-nav="-1" aria-label="Mes anterior">←</button>
+      <h2 id="monthLabel"></h2>
+      <button class="btn" data-nav="1" aria-label="Mes siguiente">→</button>
+      <button class="btn" id="monthTodayBtn">Hoy</button>
+    </div>
+    <div class="tablewrap">
+      <table class="grid" aria-label="Tareas por día del mes">
+        <thead id="gridHead"></thead>
+        <tbody id="gridBody"></tbody>
+      </table>
+    </div>
+    <p class="legend">Fijas: todos los días. Extras: las que agregas por día. Toca una fecha para abrirla en Hoy.</p>
+  </section>
+
+  <!-- ESTADÍSTICAS -->
+  <section class="panel" id="panel-stats" role="tabpanel" aria-labelledby="tab-stats" hidden>
+    <div class="kpis" id="kpis"></div>
+    <div class="grid2">
+      <div class="card">
+        <h3 class="sec">Cumplimiento global</h3>
+        <div class="donutWrap">
+          <div id="donut"></div>
+          <div id="donutLegend"></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3 class="sec">Retrospectiva</h3>
+        <ul class="retro" id="retro"></ul>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <h3 class="sec">Éxito por tarea (de menor a mayor)</h3>
+        <div id="taskBars"></div>
+      </div>
+      <div class="card">
+        <h3 class="sec">Éxito por día de la semana</h3>
+        <div id="weekBars"></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h3 class="sec">Tendencia diaria (últimos 30 días con datos)</h3>
+      <div id="lineChart"></div>
+    </div>
+  </section>
+
+  <details>
+    <summary>Ajustes de trayecto y respaldo</summary>
+    <div class="formRow" style="margin-top:8px">
+      <label class="pick">Velocidad promedio (km/h) <input type="number" id="setSpeed" min="5" max="80" step="1" style="width:90px"></label>
+      <label class="pick">Minutos de estacionarse por parada <input type="number" id="setPark" min="0" max="60" step="1" style="width:90px"></label>
+      <label class="pick">Traslado desde/hasta casa si no hay ubicación (min) <input type="number" id="setHome" min="0" max="240" step="5" style="width:90px"></label>
+    </div>
+    <p class="muted">Tus datos viven solo en este navegador. Copia el respaldo para no perderlos.</p>
+    <div class="backRow">
+      <button class="btn" id="copyBtn">Copiar respaldo</button>
+      <button class="btn" id="restoreBtn">Restaurar desde el cuadro</button>
+      <button class="btn danger" id="resetBtn">Borrar todo</button>
+      <span id="backMsg" class="muted"></span>
+    </div>
+    <textarea id="backup" aria-label="Respaldo en JSON"></textarea>
+  </details>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var KEY = "panel-vida-v2";
+
+  // Tareas fijas: todos los días. "time" es la hora sugerida; se puede cambiar por día.
+  var FIXED = [
+    { id:"cama",    short:"Cama",      text:"Levantarme y hacer mi cama", time:"07:30" },
+    { id:"cara",    short:"Cara",      text:"Cambiarme y limpiarme la cara", time:"07:35" },
+    { id:"rehid",   short:"Rehidr.",   text:"Tomar el vaso rehidratante: agua, sal, pimienta cayena, vinagre de manzana y creatina", time:"07:45" },
+    { id:"vit",     short:"Medicinas", text:"Tomar medicinas y suplementos", time:"07:50" },
+    { id:"correo",  short:"Correo",    text:"Checar correo", time:"10:00" },
+    { id:"artef",   short:"Artefactos", text:"Checar artefactos", time:"10:10" },
+    { id:"gastos",  short:"Gastos",    text:"Rellenar los artefactos con lo que gasté", time:"21:00" },
+    { id:"sacarM",  short:"Perro M",  text:"Sacar al perro en la mañana", time:"08:10" },
+    { id:"comerM",  short:"Comida M",  text:"Darle de comer y agua al perro en la mañana", time:"08:15" },
+    { id:"desay",   short:"Desayuno",  text:"Preparar el desayuno, hacer café y poner la mesa", time:"08:30" },
+    { id:"trastes", short:"Trastes",   text:"Lavar, secar y acomodar trastes", time:"09:00" },
+    { id:"ejer",    short:"Ejercicio", text:"Hacer ejercicio", time:"09:15" },
+    { id:"sacarT",  short:"Perro T",  text:"Sacar al perro en la tarde", time:"17:00" },
+    { id:"comerT",  short:"Comida T",  text:"Darle de comer y agua al perro en la tarde", time:"17:10" },
+    { id:"sacarN",  short:"Perro N",  text:"Sacar al perro en la noche", time:"21:30" },
+    { id:"comerN",  short:"Comida N",  text:"Darle de comer y agua al perro en la noche", time:"21:40" },
+    { id:"noche",   short:"Noche",     text:"Rutina de noche: limpiarme la cara, productos para el pelo y ponerme pijama", time:"22:30" }
+  ];
+  var DAYS_ES = ["dom","lun","mar","mié","jue","vie","sáb"];
+
+  function pad(n){ return String(n).padStart(2,"0"); }
+  function iso(d){ return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
+  function parseISO(s){ var p = s.split("-"); return new Date(+p[0], +p[1]-1, +p[2]); }
+  function addDays(ds, n){ var d = parseISO(ds); d.setDate(d.getDate()+n); return iso(d); }
+  function esc(s){
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+  function tmin(t){
+    var m = /^(\d{1,2}):(\d{2})$/.exec(t || "");
+    return m ? (+m[1])*60 + (+m[2]) : Infinity;
+  }
+  function toHHMM(min){
+    var h = Math.floor(min / 60), m = Math.round(min % 60);
+    if (m === 60) { h++; m = 0; }
+    return pad(h) + ":" + pad(m);
+  }
+  function sym(s){ return s === "done" ? "✓" : (s === "missed" ? "✕" : "·"); }
+  function pctOf(a, b){ return (a + b) ? a / (a + b) * 100 : null; }
+  function isNum(v){ return typeof v === "number" && isFinite(v); }
+  function mapsSearch(q){ return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(q); }
+  function mapsPoint(p){ return "https://www.google.com/maps/search/?api=1&query=" + p.lat + "," + p.lng; }
+
+  // Persistencia: con la nube (db) cada día y la configuración son un documento.
+  // Sin nube, todo se queda en este navegador (localStorage).
+  var DB = null, lastJSON = {}, lastCfg = "", writeQ = {};
+  function localSave(){ try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e) {} }
+  function enqueue(key, fn){
+    writeQ[key] = (writeQ[key] || Promise.resolve()).then(fn).catch(function(){
+      setMsg("No pude guardar en la nube. Revisa tu conexión y vuelve a intentar.");
+    });
+  }
+  function save(){
+    localSave();
+    if (!DB) return;
+    var seen = {};
+    Object.keys(state.days).forEach(function(ds){
+      seen[ds] = true;
+      var js = JSON.stringify(state.days[ds]);
+      if (lastJSON[ds] !== js) {
+        lastJSON[ds] = js;
+        enqueue("d:" + ds, function(){ return DB.doc("days/" + ds).set(JSON.parse(js)); });
+      }
+    });
+    Object.keys(lastJSON).forEach(function(ds){
+      if (!seen[ds]) {
+        delete lastJSON[ds];
+        enqueue("d:" + ds, function(){ return DB.doc("days/" + ds).delete(); });
+      }
+    });
+    var cfg = JSON.stringify({ home: state.home, settings: state.settings });
+    if (cfg !== lastCfg) {
+      lastCfg = cfg;
+      enqueue("cfg", function(){ return DB.doc("meta/config").set(JSON.parse(cfg)); });
+    }
+  }
+  function startDB(db){
+    DB = db;
+    DB.collection("days").onSnapshot(function(snap){
+      var days = {};
+      lastJSON = {};
+      snap.docs.forEach(function(d){
+        if (!d.exists) return;
+        var data = JSON.parse(JSON.stringify(d.data() || {}));
+        days[d.id] = data;
+        lastJSON[d.id] = JSON.stringify(data);
+      });
+      state.days = days;
+      localSave();
+      render();
+    }, function(e){ setMsg("Sin conexión con la nube: " + (e && e.message ? e.message : "error")); });
+    DB.doc("meta/config").onSnapshot(function(d){
+      if (!d.exists || !d.data()) return;
+      var c = JSON.parse(JSON.stringify(d.data()));
+      state.home = c.home || null;
+      state.settings = Object.assign({ speed:25, road:1.35, park:5, homeDefault:30 }, c.settings || {});
+      lastCfg = JSON.stringify({ home: state.home, settings: state.settings });
+      localSave();
+      render();
+    }, function(){});
+  }
+
+  var state = null;
+  try { state = JSON.parse(localStorage.getItem(KEY)); } catch(e) { state = null; }
+  if (!state || !state.days) { state = { v:2, home:null, settings:{ speed:25, road:1.35, park:5, homeDefault:30 }, days:{} }; }
+  if (!state.settings) state.settings = { speed:25, road:1.35, park:5, homeDefault:30 };
+
+  var today = new Date();
+  var todayISO = iso(today);
+  var selected = todayISO;
+  var viewYear = today.getFullYear();
+  var viewMonth = today.getMonth();
+  var currentTab = "hoy";
+
+  function ensureDay(ds){
+    if (!state.days[ds]) state.days[ds] = { marks:{}, times:{}, extra:[], start:"", route:null };
+    var d = state.days[ds];
+    d.marks = d.marks || {};
+    d.times = d.times || {};
+    d.extra = d.extra || [];
+    return d;
+  }
+
+  // Tareas de un día: fijas (todos los días) + extras.
+  function dayItems(ds){
+    var day = state.days[ds] || { marks:{}, times:{}, extra:[] };
+    var times = day.times || {};
+    var fixed = FIXED.map(function(f){
+      var text = f.id === "vit" ? medsText() : f.text;
+      return { key:"f_"+f.id, id:f.id, kind:"fixed", name:f.short, display:f.short, text:text, time: times[f.id] || f.time, end:"", place:null };
+    });
+    var extra = (day.extra || []).map(function(x){
+      return { key:"x_"+x.id, id:x.id, kind:"extra", name:x.text.trim().toLowerCase(), display:x.text.trim(), text:x.text,
+               time:x.time || "", end:x.end || "", travel:x.travel, place:x.place || null };
+    });
+    return { fixed:fixed, extra:extra, marks: day.marks || {} };
+  }
+
+  function dayCounts(ds){
+    var it = dayItems(ds), done = 0, missed = 0, total = 0;
+    it.fixed.concat(it.extra).forEach(function(i){
+      total++;
+      var s = it.marks[i.key];
+      if (s === "done") done++; else if (s === "missed") missed++;
+    });
+    return { done:done, missed:missed, total:total };
+  }
+
+  function cycle(ds, key){
+    var day = ensureDay(ds);
+    var cur = day.marks[key];
+    if (!cur) day.marks[key] = "done";
+    else if (cur === "done") day.marks[key] = "missed";
+    else delete day.marks[key];
+    save(); render();
+  }
+
+  function selectDay(ds){
+    selected = ds;
+    var d = parseISO(ds);
+    viewYear = d.getFullYear();
+    viewMonth = d.getMonth();
+    render();
+  }
+
+  function setTab(name){
+    currentTab = name;
+    document.querySelectorAll(".tab").forEach(function(b){
+      var on = b.dataset.tab === name;
+      b.setAttribute("aria-selected", on ? "true" : "false");
+      b.tabIndex = on ? 0 : -1;
+    });
+    ["vida","hoy","planear","mes","stats"].forEach(function(n){
+      document.getElementById("panel-" + n).hidden = name !== n;
+    });
+    if (name === "stats") renderStats();
+    if (name === "vida") {
+      if (!vidaLoaded) { vidaLoaded = true; refreshAll(); }
+      renderVida();
+    }
+  }
+
+  // ---------- TRAYECTO ----------
+  // Distancia en minutos entre dos puntos. null = casa.
+  function legMin(a, b){
+    var A = a || state.home, B = b || state.home;
+    if (!A || !B) return state.settings.homeDefault;
+    var R = 6371, t = Math.PI / 180;
+    var dLat = (B.lat - A.lat) * t, dLng = (B.lng - A.lng) * t;
+    var s = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(A.lat*t)*Math.cos(B.lat*t)*Math.sin(dLng/2)*Math.sin(dLng/2);
+    var km = 2 * R * Math.asin(Math.sqrt(s)) * state.settings.road;
+    return km / state.settings.speed * 60 + state.settings.park;
+  }
+
+  function permutations(arr){
+    var out = [];
+    (function rec(a, k){
+      if (k === a.length) { out.push(a.slice()); return; }
+      for (var i = k; i < a.length; i++) {
+        var t = a[k]; a[k] = a[i]; a[i] = t;
+        rec(a, k + 1);
+        t = a[k]; a[k] = a[i]; a[i] = t;
+      }
+    })(arr.slice(), 0);
+    return out;
+  }
+
+  // Busca el orden de paradas que termina antes, respetando horarios de apertura y cierre.
+  function bestRoute(stops, t0){
+    var perms = stops.length <= 7 ? permutations(stops) : [stops.slice()];
+    var best = null;
+    perms.forEach(function(perm){
+      var t = t0, pos = null, sched = [], penalty = 0, travelSum = 0;
+      perm.forEach(function(s){
+        var tr = legMin(pos, s.place);
+        travelSum += tr;
+        t += tr;
+        var arrive = t;
+        var op = tmin(s.place.open), cl = tmin(s.place.close);
+        if (op !== Infinity && arrive < op) arrive = op;
+        var leave = arrive + (s.dur || 15);
+        if (cl !== Infinity && leave > cl) penalty += 1000 + (leave - cl);
+        sched.push({ id:s.id, arrive:arrive, leave:leave, travel:tr });
+        t = leave;
+        pos = s.place;
+      });
+      var back = legMin(pos, null);
+      travelSum += back;
+      t += back;
+      var score = t + penalty;
+      if (!best || score < best.score) best = { score:score, end:t, sched:sched, late: penalty > 0, travel: travelSum };
+    });
+    return best;
+  }
+
+  function optimizeDay(ds){
+    var day = ensureDay(ds);
+    var stops = day.extra.filter(function(x){ return x.place && isNum(x.place.lat) && isNum(x.place.lng); });
+    if (!stops.length) { day.route = null; save(); render(); setMsg("Agrega lugares con latitud y longitud para optimizar."); return; }
+    var start = tmin(day.start || "11:45");
+    if (start === Infinity) start = tmin("11:45");
+    var best = bestRoute(stops, start);
+    best.sched.forEach(function(s){
+      var x = day.extra.find(function(e){ return e.id === s.id; });
+      if (!x) return;
+      x.time = toHHMM(s.arrive);
+      x.end = toHHMM(s.leave);
+      x.travel = Math.round(s.travel);
+    });
+    day.route = { end: toHHMM(best.end), late: best.late, travel: Math.round(best.travel), count: stops.length };
+    save(); render();
+    setMsg("Trayecto optimizado.");
+  }
+
+  function routeStops(ds){
+    var day = state.days[ds];
+    if (!day) return [];
+    return day.extra.filter(function(x){ return x.place && isNum(x.place.lat) && isNum(x.place.lng); })
+      .sort(function(a, b){ var x = tmin(a.time), y = tmin(b.time); return x === y ? 0 : (x < y ? -1 : 1); });
+  }
+
+  function mapsRoute(stops){
+    var pts = stops.map(function(s){ return s.place.lat + "," + s.place.lng; });
+    var origin, dest, way;
+    if (state.home) { origin = state.home.lat + "," + state.home.lng; dest = origin; way = pts; }
+    else { origin = pts[0]; dest = pts[pts.length - 1]; way = pts.slice(1, -1); }
+    var url = "https://www.google.com/maps/dir/?api=1&origin=" + encodeURIComponent(origin) +
+              "&destination=" + encodeURIComponent(dest) + "&travelmode=driving";
+    if (way.length) url += "&waypoints=" + encodeURIComponent(way.join("|"));
+    return url;
+  }
+
+  function routeHTML(ds){
+    var day = state.days[ds];
+    var stops = routeStops(ds);
+    if (!stops.length) return '<p class="muted">Aún no hay lugares con coordenadas este día. Agrégalos en Planear y pulsa Optimizar trayecto.</p>';
+    var rows = stops.map(function(s){
+      return '<li><span class="t">'+esc(s.time || "—")+(s.end ? "–"+esc(s.end) : "")+'</span>' +
+        '<span>'+esc(s.place.name)+'<span class="meta">'+esc(s.text)+(s.travel != null ? " · traslado ~"+s.travel+" min" : "")+'</span></span>' +
+        '<a class="linkBtn" target="_blank" rel="noopener" href="'+mapsPoint(s.place)+'">mapa</a></li>';
+    }).join("");
+    var info = day && day.route
+      ? '<p>Terminas en casa aprox. a las <b>'+esc(day.route.end)+'</b> · traslado total ~'+day.route.travel+' min'+
+        (day.route.late ? ' · <span class="warn">alguna parada cae fuera de horario, revisa</span>' : '')+'</p>'
+      : '<p class="muted">Pulsa Optimizar trayecto en Planear para acomodar las paradas.</p>';
+    return info + '<ul class="routeList">' + rows + '</ul>' +
+      '<p style="margin-top:10px"><a class="btn" target="_blank" rel="noopener" href="'+mapsRoute(stops)+'">Abrir ruta en Google Maps</a></p>';
+  }
+
+  // ---------- HOY ----------
+  function renderDaily(){
+    var d = parseISO(selected);
+    document.getElementById("dayTitle").textContent =
+      d.toLocaleDateString("es-MX", { weekday:"long", day:"numeric", month:"long" }) + (selected === todayISO ? " · hoy" : "");
+    document.getElementById("pickDate").value = selected;
+
+    var it = dayItems(selected);
+    var c = dayCounts(selected);
+    var res = c.done + c.missed;
+    var txt = c.total ? c.done + " de " + c.total + " hechas" : "Sin tareas este día";
+    if (res) txt += " · " + Math.round(c.done / res * 100) + "% de éxito";
+    document.getElementById("dayScore").textContent = txt;
+    document.getElementById("dayFill").style.width = (c.total ? c.done / c.total * 100 : 0).toFixed(1) + "%";
+
+    document.getElementById("routeHoy").innerHTML = routeHTML(selected);
+
+    var list = it.fixed.concat(it.extra);
+    list.sort(function(a, b){
+      var x = tmin(a.time), y = tmin(b.time);
+      return x === y ? 0 : (x < y ? -1 : 1);
+    });
+    document.getElementById("taskList").innerHTML = list.map(function(i){
+      var s = it.marks[i.key] || "";
+      var meta = i.end ? '<span class="meta">hasta '+esc(i.end)+'</span>' : "";
+      return '<li class="'+s+'">' +
+        '<button class="mk '+s+'" data-date="'+selected+'" data-key="'+i.key+'" aria-label="Marcar: '+esc(i.text)+'">'+sym(s)+'</button>' +
+        '<input type="time" class="tin" data-date="'+selected+'" data-id="'+i.id+'" data-kind="'+i.kind+'" value="'+esc(i.time)+'" aria-label="Hora de: '+esc(i.text)+'">' +
+        '<span class="txt">'+esc(i.text)+meta+'</span>' +
+        (i.kind === "extra"
+          ? '<button class="del" data-del="'+i.id+'" aria-label="Quitar tarea">×</button>'
+          : '<span class="src">fija</span>') +
+        '</li>';
+    }).join("");
+  }
+
+  function renderPending(){
+    var items = [];
+    for (var k = 1; k <= 7; k++) {
+      var ds = addDays(todayISO, -k);
+      if (!state.days[ds]) continue;
+      var it = dayItems(ds);
+      it.fixed.concat(it.extra).forEach(function(i){
+        if (!it.marks[i.key]) items.push({ ds:ds, text:i.text });
+      });
+    }
+    var box = document.getElementById("pendingList");
+    if (!items.length) { box.innerHTML = '<p class="muted">Nada pendiente en la última semana.</p>'; return; }
+    box.innerHTML = items.slice(0, 40).map(function(p){
+      var label = parseISO(p.ds).toLocaleDateString("es-MX", { weekday:"short", day:"numeric", month:"short" });
+      return '<div class="pendRow"><span>'+esc(p.text)+'</span><button class="linkBtn" data-select="'+p.ds+'">'+esc(label)+'</button></div>';
+    }).join("");
+  }
+
+  // ---------- PLANEAR ----------
+  function renderPlan(){
+    var d = parseISO(selected);
+    document.getElementById("planTitle").textContent =
+      d.toLocaleDateString("es-MX", { weekday:"long", day:"numeric", month:"long" }) + (selected === todayISO ? " · hoy" : "");
+    document.getElementById("planDate").value = selected;
+    var day = state.days[selected] || {};
+    document.getElementById("startTime").value = day.start || "";
+
+    var routeBox = document.getElementById("routeBox");
+    routeBox.innerHTML = routeHTML(selected);
+
+    var h = document.getElementById("homeInfo");
+    h.textContent = state.home
+      ? "Casa: " + state.home.lat + ", " + state.home.lng + ". El trayecto sale y regresa aquí."
+      : "Sin ubicación de casa: el trayecto usa " + state.settings.homeDefault + " min desde y hasta casa. Pon tu ubicación para exactitud.";
+    document.getElementById("homeLat").value = state.home ? state.home.lat : "";
+    document.getElementById("homeLng").value = state.home ? state.home.lng : "";
+    document.getElementById("setSpeed").value = state.settings.speed;
+    document.getElementById("setPark").value = state.settings.park;
+    document.getElementById("setHome").value = state.settings.homeDefault;
+
+    var list = dayItems(selected).extra.slice().sort(function(a, b){
+      var x = tmin(a.time), y = tmin(b.time);
+      return x === y ? 0 : (x < y ? -1 : 1);
+    });
+    document.getElementById("planList").innerHTML = list.length
+      ? list.map(function(i){
+          var pl = i.place ? '<span class="meta">'+esc(i.place.name)+(i.place.open||i.place.close ? " · "+esc(i.place.open||"?")+"–"+esc(i.place.close||"?") : "")+'</span>' : "";
+          return '<li><span class="time">'+esc(i.time || "—")+'</span><span class="txt">'+esc(i.text)+pl+'</span><span></span>' +
+            '<button class="del" data-del="'+i.id+'" aria-label="Quitar tarea">×</button></li>';
+        }).join("")
+      : '<li class="muted">Sin tareas extra para este día.</li>';
+  }
+
+  // ---------- MES ----------
+  function renderMonth(){
+    var first = new Date(viewYear, viewMonth, 1);
+    var n = new Date(viewYear, viewMonth + 1, 0).getDate();
+    document.getElementById("monthLabel").textContent = first.toLocaleDateString("es-MX", { month:"long", year:"numeric" });
+
+    document.getElementById("gridHead").innerHTML =
+      '<tr><th scope="col">Día</th>' +
+      FIXED.map(function(f){ return '<th scope="col" title="'+esc(f.text)+'">'+esc(f.short)+'</th>'; }).join("") +
+      '<th scope="col" title="Tareas que agregas por día">Extras</th><th scope="col">Éxito</th></tr>';
+
+    var body = "";
+    for (var k = 1; k <= n; k++) {
+      var ds = viewYear + "-" + pad(viewMonth + 1) + "-" + pad(k);
+      var dt = new Date(viewYear, viewMonth, k);
+      var it = dayItems(ds);
+      var cells = FIXED.map(function(f){
+        var key = "f_" + f.id, s = it.marks[key] || "";
+        return '<td><button class="mk '+s+'" data-date="'+ds+'" data-key="'+key+'" aria-label="'+esc(f.text)+' · '+ds+'">'+sym(s)+'</button></td>';
+      }).join("");
+      var extDone = it.extra.filter(function(x){ return it.marks["x_"+x.id] === "done"; }).length;
+      var c = dayCounts(ds);
+      var p = pctOf(c.done, c.missed);
+      var cls = (ds === todayISO ? "today " : "") + (ds === selected ? "sel" : "");
+      body += '<tr class="'+cls+'">' +
+        '<th scope="row" class="row"><button class="dayBtn" data-select="'+ds+'">'+DAYS_ES[dt.getDay()]+' '+k+'</button></th>' +
+        cells +
+        '<td><button class="linkBtn" data-select="'+ds+'">'+extDone+'/'+it.extra.length+'</button></td>' +
+        '<td class="pct">'+(p == null ? "—" : Math.round(p)+"%")+'</td></tr>';
+    }
+    document.getElementById("gridBody").innerHTML = body;
+  }
+
+  // ---------- ESTADÍSTICAS ----------
+  function computeStats(){
+    var rows = [];
+    Object.keys(state.days).forEach(function(ds){
+      if (ds > todayISO) return;
+      var it = dayItems(ds);
+      it.fixed.concat(it.extra).forEach(function(i){
+        rows.push({ ds:ds, dow: parseISO(ds).getDay(), name:i.name, display:i.display, status: it.marks[i.key] || null });
+      });
+    });
+
+    var done = rows.filter(function(r){ return r.status === "done"; }).length;
+    var missed = rows.filter(function(r){ return r.status === "missed"; }).length;
+    var unmarked = rows.filter(function(r){ return !r.status; }).length;
+    var resolved = done + missed;
+    var success = pctOf(done, missed);
+    var failed = resolved ? missed / resolved * 100 : null;
+
+    var byTask = {};
+    rows.forEach(function(r){
+      if (!r.status) return;
+      var t = byTask[r.name] || (byTask[r.name] = { name:r.name, display:r.display, done:0, missed:0 });
+      if (r.status === "done") t.done++; else t.missed++;
+    });
+    var tasks = Object.keys(byTask).map(function(k){
+      var t = byTask[k];
+      return { name:t.name, display:t.display, done:t.done, missed:t.missed, total:t.done + t.missed, pct: t.done / (t.done + t.missed) * 100 };
+    });
+    var pool = tasks.filter(function(t){ return t.total >= 2; });
+    var use = pool.length ? pool : tasks;
+    var weakest = use.slice().sort(function(a, b){ return a.pct - b.pct || b.total - a.total; })[0] || null;
+    var best = use.slice().sort(function(a, b){ return b.pct - a.pct || b.total - a.total; })[0] || null;
+
+    var byDay = {};
+    rows.forEach(function(r){
+      if (!r.status) return;
+      var d = byDay[r.ds] || (byDay[r.ds] = { ds:r.ds, dow:r.dow, done:0, missed:0 });
+      if (r.status === "done") d.done++; else d.missed++;
+    });
+    var days = Object.keys(byDay).sort().map(function(k){ return byDay[k]; });
+    var perfect = days.filter(function(d){ return d.done > 0 && d.missed === 0; }).length;
+
+    var wd = {};
+    for (var w = 0; w < 7; w++) wd[w] = { d:0, m:0 };
+    days.forEach(function(d){ wd[d.dow].d += d.done; wd[d.dow].m += d.missed; });
+
+    return { done:done, missed:missed, unmarked:unmarked, resolved:resolved, success:success, failed:failed,
+             tasks:tasks, pool:pool, weakest:weakest, best:best, days:days, perfect:perfect, wd:wd };
+  }
+
+  function donutSVG(s){
+    var total = s.done + s.missed + s.unmarked;
+    if (!total) return '<p class="muted">Aún no hay datos.</p>';
+    var r = 52, C = 2 * Math.PI * r;
+    function seg(v, color, offset){
+      var len = v / total * C;
+      return '<circle cx="70" cy="70" r="'+r+'" fill="none" stroke-width="18" style="stroke:'+color+'" stroke-dasharray="'+len+' '+(C-len)+'" stroke-dashoffset="'+(-offset)+'" transform="rotate(-90 70 70)"/>';
+    }
+    return '<svg viewBox="0 0 140 140" width="160" height="160" role="img" aria-label="Cumplimiento global">' +
+      '<circle cx="70" cy="70" r="'+r+'" fill="none" stroke-width="18" style="stroke:var(--track)"/>' +
+      seg(s.done, "var(--accent)", 0) +
+      seg(s.missed, "var(--miss-ink)", s.done / total * C) +
+      seg(s.unmarked, "var(--line)", (s.done + s.missed) / total * C) +
+      '<text class="big" x="70" y="77" text-anchor="middle">' + (s.success == null ? "—" : Math.round(s.success) + "%") + '</text>' +
+      '</svg>';
+  }
+
+  function hbars(tasks){
+    if (!tasks.length) return '<p class="muted">Aún no hay tareas marcadas.</p>';
+    return tasks.slice().sort(function(a, b){ return a.pct - b.pct || b.total - a.total; }).map(function(t){
+      var col = t.pct < 50 ? "var(--miss-ink)" : "var(--accent)";
+      return '<div class="hb"><div class="hb-top"><span>'+esc(t.display)+'</span><span>'+Math.round(t.pct)+'% · '+t.done+'/'+t.total+'</span></div>' +
+        '<div class="track"><div class="fill" style="width:'+t.pct.toFixed(1)+'%; background:'+col+'"></div></div></div>';
+    }).join("");
+  }
+
+  function lineChart(days){
+    var pts = days.filter(function(d){ return d.done + d.missed > 0; }).slice(-30).map(function(d){
+      return { ds:d.ds, v: d.done / (d.done + d.missed) * 100 };
+    });
+    if (pts.length < 2) return '<p class="muted">Necesitas al menos 2 días con tareas marcadas.</p>';
+    var W = 600, H = 220, P = 30;
+    function X(i){ return P + i * (W - 2*P) / (pts.length - 1); }
+    function Y(v){ return H - P - v / 100 * (H - 2*P); }
+    var grid = "";
+    [0, 50, 100].forEach(function(g){
+      grid += '<line x1="'+P+'" x2="'+(W-P)+'" y1="'+Y(g)+'" y2="'+Y(g)+'" style="stroke:var(--line)"/>' +
+              '<text x="'+(P-6)+'" y="'+(Y(g)+4)+'" text-anchor="end">'+g+'%</text>';
+    });
+    var path = pts.map(function(p, i){ return (i ? "L" : "M") + X(i).toFixed(1) + " " + Y(p.v).toFixed(1); }).join(" ");
+    var dots = pts.map(function(p, i){
+      return '<circle cx="'+X(i).toFixed(1)+'" cy="'+Y(p.v).toFixed(1)+'" r="3.5" style="fill:var(--accent)"><title>'+esc(p.ds)+': '+Math.round(p.v)+'%</title></circle>';
+    }).join("");
+    function lab(ds){ return ds.slice(8) + "/" + ds.slice(5, 7); }
+    return '<svg viewBox="0 0 '+W+' '+H+'" class="chart" role="img" aria-label="Éxito diario">' + grid +
+      '<path d="'+path+'" fill="none" stroke-width="2.5" style="stroke:var(--accent)"/>' + dots +
+      '<text x="'+P+'" y="'+(H-6)+'">'+lab(pts[0].ds)+'</text>' +
+      '<text x="'+(W-P)+'" y="'+(H-6)+'" text-anchor="end">'+lab(pts[pts.length-1].ds)+'</text></svg>';
+  }
+
+  function weekBars(wd){
+    var order = [1,2,3,4,5,6,0], names = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
+    var W = 420, H = 200, P = 28, bw = (W - 2*P) / 7, out = "";
+    order.forEach(function(dw, i){
+      var v = wd[dw], tot = v.d + v.m, pct = tot ? v.d / tot * 100 : 0;
+      var h = pct / 100 * (H - 2*P - 10);
+      var x = P + i*bw + 7, w = bw - 14, y = H - P - h;
+      out += '<rect x="'+x.toFixed(1)+'" y="'+(tot ? y.toFixed(1) : (H-P-2))+'" width="'+w.toFixed(1)+'" height="'+(tot ? Math.max(h,2).toFixed(1) : 2)+'" rx="4" style="fill:'+(tot ? "var(--accent)" : "var(--track)")+'"/>';
+      out += '<text x="'+(x+w/2).toFixed(1)+'" y="'+(H-P+16)+'" text-anchor="middle">'+names[i]+'</text>';
+      if (tot) out += '<text x="'+(x+w/2).toFixed(1)+'" y="'+(y-6).toFixed(1)+'" text-anchor="middle">'+Math.round(pct)+'%</text>';
+    });
+    return '<svg viewBox="0 0 '+W+' '+H+'" class="chart" role="img" aria-label="Éxito por día de la semana">'+out+'</svg>';
+  }
+
+  function kpi(v, l){ return '<div class="kpi"><b>'+esc(v)+'</b><span>'+esc(l)+'</span></div>'; }
+
+  function renderStats(){
+    var s = computeStats();
+    var pct = function(v){ return v == null ? "—" : Math.round(v) + "%"; };
+    document.getElementById("kpis").innerHTML =
+      kpi(pct(s.success), "Éxito") +
+      kpi(pct(s.failed), "No cumplido") +
+      kpi(String(s.days.length), "Días con registro") +
+      kpi(String(s.perfect), "Días al 100%");
+
+    document.getElementById("donut").innerHTML = donutSVG(s);
+    document.getElementById("donutLegend").innerHTML =
+      '<div><span class="sw" style="background:var(--accent)"></span>Hechas: '+s.done+'</div>' +
+      '<div><span class="sw" style="background:var(--miss-ink)"></span>No hechas: '+s.missed+'</div>' +
+      '<div><span class="sw" style="background:var(--line)"></span>Sin marcar: '+s.unmarked+'</div>';
+
+    var lines = [];
+    if (!s.resolved) {
+      lines.push("Todavía no hay tareas marcadas. Empieza en la pestaña Hoy.");
+    } else {
+      lines.push("Cumpliste el " + Math.round(s.success) + "% de " + s.resolved + " tareas marcadas.");
+      if (s.weakest) lines.push("Tarea menos lograda: " + s.weakest.display + ", con " + Math.round(s.weakest.pct) + "% (no hecha " + s.weakest.missed + " de " + s.weakest.total + " veces).");
+      if (s.best && s.best !== s.weakest) lines.push("Tarea más constante: " + s.best.display + ", con " + Math.round(s.best.pct) + "%.");
+      if (!s.pool.length) lines.push("Aún hay pocos datos por tarea; la comparación es preliminar.");
+      if (s.unmarked) lines.push(s.unmarked + " tareas quedaron sin marcar. No cuentan en el porcentaje.");
+    }
+    document.getElementById("retro").innerHTML = lines.map(function(l){ return "<li>"+esc(l)+"</li>"; }).join("");
+
+    document.getElementById("taskBars").innerHTML = hbars(s.tasks);
+    document.getElementById("weekBars").innerHTML = weekBars(s.wd);
+    document.getElementById("lineChart").innerHTML = lineChart(s.days);
+  }
+
+  // ---------- MEDICINAS (lista editable, se guarda con la configuración) ----------
+  var DEFAULT_MEDS = ["Ejemplo: vitamina D", "Ejemplo: omega 3"];
+  function medsList(){ return Array.isArray(state.settings.meds) ? state.settings.meds : DEFAULT_MEDS.slice(); }
+  function medsText(){
+    var l = medsList();
+    return l.length ? "Tomar medicinas y suplementos: " + l.join(", ") : "Tomar medicinas y suplementos (lista vacía)";
+  }
+  function setMeds(list){
+    state.settings.meds = list.map(function(s){ return String(s).trim(); }).filter(Boolean);
+    save(); render();
+  }
+  function renderMeds(){
+    var box = document.getElementById("medList");
+    if (!box) return;
+    var l = medsList();
+    box.innerHTML = l.length ? l.map(function(m, i){
+      return '<li><input type="text" class="medIn" data-med="' + i + '" value="' + esc(m) + '" aria-label="Medicina ' + (i + 1) + '">' +
+             '<button class="del" type="button" data-meddel="' + i + '" aria-label="Quitar ' + esc(m) + '">×</button></li>';
+    }).join("") : '<li class="muted">Sin medicinas en la lista.</li>';
+  }
+
+  // ---------- RENDER GENERAL ----------
+  function render(){
+    renderMeds();
+    renderDaily();
+    renderPending();
+    renderPlan();
+    renderMonth();
+    if (currentTab === "stats") renderStats();
+    renderVida();
+  }
+
+  function deleteExtra(ds, id){
+    var day = state.days[ds];
+    if (!day) return;
+    day.extra = day.extra.filter(function(x){ return x.id !== id; });
+    delete day.marks["x_" + id];
+    save(); render();
+  }
+
+  function setMsg(m){ document.getElementById("backMsg").textContent = m; }
+  function setHomeMsg(m){ document.getElementById("homeMsg").textContent = m; }
+
+  // ---------- EVENTOS ----------
+  document.addEventListener("click", function(ev){
+    var t = ev.target;
+    var tab = t.closest("[data-tab]");
+    if (tab) { setTab(tab.dataset.tab); return; }
+    var mk = t.closest("[data-key]");
+    if (mk) { cycle(mk.dataset.date, mk.dataset.key); return; }
+    var sel = t.closest("[data-select]");
+    if (sel) { selectDay(sel.dataset.select); setTab("hoy"); return; }
+    var md = t.closest("[data-meddel]");
+    if (md) { var ml = medsList().slice(); ml.splice(+md.dataset.meddel, 1); setMeds(ml); return; }
+    var del = t.closest("[data-del]");
+    if (del) { deleteExtra(selected, del.dataset.del); return; }
+    var shift = t.closest("[data-shift]");
+    if (shift) { selectDay(addDays(selected, +shift.dataset.shift)); return; }
+    var nav = t.closest("[data-nav]");
+    if (nav) {
+      var d = new Date(viewYear, viewMonth + (+nav.dataset.nav), 1);
+      viewYear = d.getFullYear(); viewMonth = d.getMonth();
+      renderMonth(); return;
+    }
+    if (t.closest("#todayBtn")) { selectDay(todayISO); return; }
+    if (t.closest("#monthTodayBtn")) { viewYear = today.getFullYear(); viewMonth = today.getMonth(); renderMonth(); return; }
+    if (t.closest("#optBtn")) { optimizeDay(selected); return; }
+    if (t.closest("#homeGeo")) { useGeo(); return; }
+    if (t.closest("#resetBtn")) { handleReset(); return; }
+    if (t.closest("#copyBtn")) { copyBackup(); return; }
+    if (t.closest("#restoreBtn")) { restoreBackup(); return; }
+    if (t.closest("#refreshVida")) { refreshAll(); return; }
+    if (t.closest("#savePrio")) {
+      vidaState().priority = document.getElementById("prioInput").value.split(",").map(function(s){ return s.trim().toLowerCase(); }).filter(Boolean);
+      saveVida(); renderVida(); loadMail(); return;
+    }
+    var rt = t.closest("[data-retry]");
+    if (rt) { if (rt.dataset.retry === "calendar") refreshCalendar(); else loadMail(); return; }
+    var ts = t.closest("[data-tstate]");
+    if (ts) {
+      var tk = vidaState().tasks[ts.dataset.tstate];
+      if (tk) { tk.estado = tk.estado === "pendiente" ? "en_progreso" : (tk.estado === "en_progreso" ? "hecha" : "pendiente"); saveVida(); renderVida(); }
+      return;
+    }
+    var td = t.closest("[data-tdel]");
+    if (td) { delete vidaState().tasks[td.dataset.tdel]; saveVida(); renderVida(); return; }
+  });
+
+  document.addEventListener("change", function(ev){
+    var t = ev.target;
+    if ((t.id === "pickDate" || t.id === "planDate") && t.value) { selectDay(t.value); return; }
+    if (t.id === "startTime") { ensureDay(selected).start = t.value; save(); render(); return; }
+    if (t.id === "agendaRange") { renderVida(); return; }
+    if (t.matches && t.matches("input.tdate")) {
+      var tkk = vidaState().tasks[t.dataset.tdate];
+      if (tkk) { tkk.fecha_limite = /^\d{4}-\d{2}-\d{2}$/.test(t.value) ? t.value : null; saveVida(); renderVida(); }
+      return;
+    }
+    if (t.id === "setSpeed") { state.settings.speed = Math.max(5, +t.value || 25); save(); render(); return; }
+    if (t.id === "setPark") { state.settings.park = Math.max(0, +t.value || 0); save(); render(); return; }
+    if (t.id === "setHome") { state.settings.homeDefault = Math.max(0, +t.value || 0); save(); render(); return; }
+    if (t.matches && t.matches("input.medIn")) {
+      var ml2 = medsList().slice();
+      ml2[+t.dataset.med] = t.value;
+      setMeds(ml2);
+      return;
+    }
+    if (t.matches && t.matches("input.tin")) {
+      var ds = t.dataset.date, id = t.dataset.id;
+      var day = ensureDay(ds);
+      if (t.dataset.kind === "fixed") {
+        day.times[id] = t.value;
+      } else {
+        var x = day.extra.find(function(e){ return e.id === id; });
+        if (x) { x.time = t.value; x.end = ""; }
+      }
+      save(); render();
+    }
+  });
+
+  document.getElementById("addForm").addEventListener("submit", function(ev){
+    ev.preventDefault();
+    var time = document.getElementById("addTime").value || "";
+    var txtEl = document.getElementById("addText");
+    var txt = txtEl.value.trim();
+    if (!txt) return;
+    var day = ensureDay(selected);
+    day.extra.push({ id: "x" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), time: time, text: txt, dur: 15, place: null });
+    save();
+    txtEl.value = "";
+    document.getElementById("addTime").value = "";
+    render();
+  });
+
+  // Planear: lugar con coordenadas
+  document.getElementById("pName").addEventListener("input", function(ev){
+    var q = ev.target.value.trim();
+    document.getElementById("findLink").href = q ? mapsSearch(q + " Atizapán") : "https://www.google.com/maps";
+  });
+
+  document.getElementById("pForm").addEventListener("submit", function(ev){
+    ev.preventDefault();
+    var text = document.getElementById("pText").value.trim();
+    if (!text) return;
+    var name = document.getElementById("pName").value.trim();
+    var lat = parseFloat(document.getElementById("pLat").value);
+    var lng = parseFloat(document.getElementById("pLng").value);
+    var hasPlace = name || isNum(lat) || isNum(lng);
+    var place = hasPlace ? {
+      name: name || text,
+      lat: isNum(lat) ? lat : null,
+      lng: isNum(lng) ? lng : null,
+      open: document.getElementById("pOpen").value || "",
+      close: document.getElementById("pClose").value || ""
+    } : null;
+    if (place && !(isNum(place.lat) && isNum(place.lng))) place = { name: place.name, lat: null, lng: null, open: place.open, close: place.close };
+    var day = ensureDay(selected);
+    day.extra.push({
+      id: "x" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      text: text,
+      time: document.getElementById("pTime").value || "",
+      dur: Math.max(0, parseInt(document.getElementById("pDur").value, 10) || 15),
+      place: place
+    });
+    day.route = null;
+    save();
+    ["pText","pTime","pName","pLat","pLng","pOpen","pClose"].forEach(function(id){ document.getElementById(id).value = ""; });
+    document.getElementById("pDur").value = "15";
+    document.getElementById("findLink").href = "https://www.google.com/maps";
+    render();
+  });
+
+  document.getElementById("medForm").addEventListener("submit", function(ev){
+    ev.preventDefault();
+    var el = document.getElementById("medNew");
+    var v = el.value.trim();
+    if (!v) return;
+    setMeds(medsList().concat([v]));
+    el.value = "";
+  });
+
+  document.getElementById("taskForm").addEventListener("submit", function(ev){
+    ev.preventDefault();
+    var el = document.getElementById("taskText");
+    var txt = el.value;
+    el.value = "";
+    addTaskFromText(txt);
+  });
+
+  // Casa
+  function saveHome(lat, lng){
+    if (!isNum(lat) || !isNum(lng)) { setHomeMsg("Revisa latitud y longitud."); return; }
+    state.home = { lat: lat, lng: lng };
+    save(); render();
+    setHomeMsg("Casa guardada.");
+  }
+  document.getElementById("homeSave").addEventListener("click", function(){
+    saveHome(parseFloat(document.getElementById("homeLat").value), parseFloat(document.getElementById("homeLng").value));
+  });
+  function useGeo(){
+    if (!navigator.geolocation) { setHomeMsg("Tu navegador no da ubicación; escribe la latitud y longitud."); return; }
+    setHomeMsg("Buscando tu ubicación...");
+    navigator.geolocation.getCurrentPosition(
+      function(p){ saveHome(p.coords.latitude, p.coords.longitude); },
+      function(){ setHomeMsg("No se pudo usar tu ubicación; escribe latitud y longitud."); },
+      { enableHighAccuracy:true, timeout:10000 }
+    );
+  }
+
+  // Respaldo y reinicio
+  var resetArmed = false;
+  function handleReset(){
+    var b = document.getElementById("resetBtn");
+    if (!resetArmed) {
+      resetArmed = true;
+      b.textContent = "Confirmar: borrar todo";
+      setTimeout(function(){ resetArmed = false; b.textContent = "Borrar todo"; }, 4000);
+      return;
+    }
+    state = { v:2, home: state.home, settings: state.settings, days:{}, vida:{ tasks:{}, emails:{}, priority: vidaState().priority } };
+    save();
+    saveVida();
+    resetArmed = false;
+    b.textContent = "Borrar todo";
+    render();
+    setMsg("Datos borrados.");
+  }
+  function copyBackup(){
+    var txt = JSON.stringify(state);
+    var box = document.getElementById("backup");
+    box.value = txt;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(txt).then(
+        function(){ setMsg("Respaldo copiado."); },
+        function(){ box.select(); setMsg("Cópialo a mano desde el cuadro."); }
+      );
+    } else {
+      box.select();
+      setMsg("Cópialo a mano desde el cuadro.");
+    }
+  }
+  function restoreBackup(){
+    var box = document.getElementById("backup");
+    try {
+      var s = JSON.parse(box.value);
+      if (!s || !s.days) throw new Error("formato");
+      state = s; save(); saveVida(); render();
+      setMsg("Respaldo restaurado.");
+    } catch(e) {
+      setMsg("No pude leer ese respaldo.");
+    }
+  }
+
+  // Tema claro/oscuro: se recuerda en este navegador.
+  var themeSw = document.getElementById("themeSwitch");
+  function isDarkNow(){ return document.documentElement.getAttribute("data-theme") === "dark"; }
+  function applyTheme(dark){
+    document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+    themeSw.setAttribute("aria-checked", dark ? "true" : "false");
+    document.getElementById("themeLabel").textContent = dark ? "Modo oscuro" : "Modo claro";
+  }
+  // Al abrir: la elección guardada; si no hay, el tema del sistema.
+  var startDark = false;
+  try {
+    var saved = localStorage.getItem("panel-theme");
+    if (saved) startDark = saved === "dark";
+    else startDark = !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  } catch(e) { startDark = false; }
+  applyTheme(startDark);
+  themeSw.addEventListener("click", function(){
+    var dark = !isDarkNow();
+    applyTheme(dark);
+    try { localStorage.setItem("panel-theme", dark ? "dark" : "light"); } catch(e) {}
+  });
+
+  // ---------- MI DÍA: agenda, correos, tareas, alertas y conexiones ----------
+  // Solo lectura: Calendar (list_events) y Gmail (search_threads). Nunca envía, borra ni modifica.
+  var DAY_START = 8 * 60, DAY_END = 22 * 60;   // ventana para calcular tiempo libre
+  var PRIO_RANK = { alta:0, media:1, baja:2 };
+  var CATS = ["responder_hoy", "esperando_respuesta", "informativo"];
+  var calEvents = [], mailThreads = [];
+  var calState = "idle", mailState = "idle", calErr = "", mailErr = "";
+  var lastSync = { calendar:"", gmail:"" };
+  var sampleOK = true, connInfo = null, vidaLoaded = false;
+  var samplePromise = null, mcpPromise = null;
+  var lastVidaJSON = { tasks:{}, emails:{} };
+
+  function vidaState(){
+    if (!state.vida) state.vida = { tasks:{}, emails:{}, priority:[] };
+    state.vida.tasks = state.vida.tasks || {};
+    state.vida.emails = state.vida.emails || {};
+    state.vida.priority = state.vida.priority || [];
+    return state.vida;
+  }
+  function newId(p){ return p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+  function fmtDay(ds){ return parseISO(ds).toLocaleDateString("es-MX", { weekday:"short", day:"numeric", month:"short" }); }
+  function dayLabel(ds){
+    return parseISO(ds).toLocaleDateString("es-MX", { weekday:"long", day:"numeric", month:"long" }) + (ds === todayISO ? " · hoy" : "");
+  }
+
+  // Conexiones con cuidado: los servicios solo se piden cuando la vista lo necesita.
+  function getSample(){
+    if (!samplePromise) samplePromise = (async function(){
+      try { return window.claude && window.claude.use ? await window.claude.use("sample") : null; } catch(e) { return null; }
+    })();
+    return samplePromise;
+  }
+  function getMcp(){
+    if (!mcpPromise) mcpPromise = (async function(){
+      try { return window.claude && window.claude.use ? await window.claude.use("mcp") : null; } catch(e) { return null; }
+    })();
+    return mcpPromise;
+  }
+  function callMcp(server, tool, input){
+    return getMcp().then(function(mcp){
+      if (!mcp) return Promise.reject({ code:"capability_disabled", message:"sin conexión a conectores" });
+      return mcp.callTool(server, tool, input);
+    }).then(function(r){ return r.payload; });
+  }
+  function mcpMsg(e){
+    var c = e && e.code;
+    if (c === "needs_reauth") return "Hay que volver a conectar esta cuenta en claude.ai › Configuración › Conectores.";
+    if (c === "server_not_connected") return "Agrega este conector en claude.ai › Configuración › Conectores.";
+    if (c === "selection_required") return "Elige la cuenta de este conector en claude.ai.";
+    if (c === "not_in_manifest" || c === "blocked_by_policy") return "No tienes permiso para leer este servicio.";
+    if (c === "approval_required") return "Hace falta tu aprobación. Pulsa Actualizar otra vez.";
+    if (c === "server_unavailable" || c === "upstream_error") return "El servicio no respondió. Intenta de nuevo en un momento.";
+    if (c === "capability_disabled" || c === "not_granted" || c === "consent_required") return "Esta vista no puede conectarse a tus servicios.";
+    return "No pude leer el servicio" + (e && e.message ? ": " + e.message : ".");
+  }
+
+  // Persistencia de tareas y clasificaciones: igual que los días, con diff hacia la nube.
+  function saveVida(){
+    localSave();
+    if (!DB) return;
+    var v = vidaState();
+    ["tasks", "emails"].forEach(function(col){
+      var map = v[col], prev = lastVidaJSON[col], seen = {};
+      Object.keys(map).forEach(function(id){
+        seen[id] = true;
+        var js = JSON.stringify(map[id]);
+        if (prev[id] !== js) {
+          prev[id] = js;
+          enqueue(col + ":" + id, function(){ return DB.doc(col + "/" + id).set(JSON.parse(js)); });
+        }
+      });
+      Object.keys(prev).forEach(function(id){
+        if (!seen[id]) { delete prev[id]; enqueue(col + ":" + id, function(){ return DB.doc(col + "/" + id).delete(); }); }
+      });
+    });
+  }
+  function startVidaDB(db){
+    ["tasks", "emails"].forEach(function(col){
+      db.collection(col).onSnapshot(function(snap){
+        var map = {}, prev = {};
+        snap.docs.forEach(function(d){
+          if (!d.exists) return;
+          var data = JSON.parse(JSON.stringify(d.data() || {}));
+          map[d.id] = data;
+          prev[d.id] = JSON.stringify(data);
+        });
+        vidaState()[col] = map;
+        lastVidaJSON[col] = prev;
+        localSave();
+        renderVida();
+      }, function(){});
+    });
+  }
+
+  // ----- Calendario -----
+  function evLink(e){
+    if (e.hangoutLink) return e.hangoutLink;
+    var eps = e.conferenceData && e.conferenceData.entryPoints;
+    if (eps && eps[0] && eps[0].uri) return eps[0].uri;
+    var txt = (e.location || "") + " " + (e.description || "");
+    var m = /https?:\/\/[^\s"<>]*(zoom\.us|meet\.google|teams\.microsoft)[^\s"<>]*/i.exec(txt);
+    return m ? m[0] : "";
+  }
+  function hm(s){ return (s && s.length >= 16 && s.charAt(10) === "T") ? s.slice(11, 16) : ""; }
+  function normEvents(payload){
+    var items = payload && (payload.events || payload.items || (Array.isArray(payload) ? payload : null));
+    if (!Array.isArray(items)) return [];
+    var out = [];
+    items.forEach(function(e){
+      if (!e || e.status === "cancelled") return;
+      var s = e.startTime || (e.start && (e.start.dateTime || e.start.date)) || "";
+      var en = e.endTime || (e.end && (e.end.dateTime || e.end.date)) || "";
+      if (!s) return;
+      var allDay = s.length === 10;
+      var start = tmin(hm(s)), end = tmin(hm(en));
+      if (!allDay && start === Infinity) return;
+      out.push({
+        title: e.summary || e.title || "(sin título)",
+        date: s.slice(0, 10), allDay: allDay, start: start, end: end,
+        link: evLink(e), hasDesc: !!(e.description && String(e.description).trim())
+      });
+    });
+    return out;
+  }
+  // Recorre un día: eventos con conflicto y separación corta, y bloques libres de más de 45 min.
+  function dayAgenda(ds){
+    var timed = calEvents.filter(function(e){ return e.date === ds && !e.allDay; })
+                         .sort(function(a, b){ return a.start - b.start; });
+    var rows = [], free = 0, meet = 0, cur = DAY_START, prev = null;
+    timed.forEach(function(e){
+      var end = (e.end === Infinity || e.end <= e.start) ? e.start + 30 : e.end;
+      var gap = e.start - cur;
+      if (gap > 45) { rows.push({ type:"free", from:cur, to:e.start }); free += gap; }
+      var overlap = !!prev && e.start < cur;
+      var row = { type:"ev", start:e.start, endMin:end, title:e.title, link:e.link,
+                  conflict:overlap, tight:(!!prev && !overlap && gap < 15) };
+      if (overlap) prev.conflict = true;
+      rows.push(row);
+      meet += end - e.start;
+      cur = Math.max(cur, end);
+      prev = row;
+    });
+    if (DAY_END - cur > 45) { rows.push({ type:"free", from:cur, to:DAY_END }); free += DAY_END - cur; }
+    return { rows:rows, free:free, meet:meet };
+  }
+  function agendaHTML(ds){
+    var d = dayAgenda(ds);
+    if (!d.rows.length) return '<p class="muted">Sin eventos.</p>';
+    return '<ol class="tl">' + d.rows.map(function(r){
+      if (r.type === "free") {
+        return '<li class="free"><span class="t">' + toHHMM(r.from) + '–' + toHHMM(r.to) + '</span><span>Tiempo disponible · ' + Math.round(r.to - r.from) + ' min</span></li>';
+      }
+      var flags = (r.conflict ? '<span class="warn">conflicto de horario</span> ' : '') +
+                  (r.tight ? '<span>menos de 15 min después del anterior</span>' : '');
+      var link = r.link ? ' · <a class="linkBtn" target="_blank" rel="noopener" href="' + esc(r.link) + '">videollamada</a>' : '';
+      return '<li><span class="t">' + toHHMM(r.start) + '</span><span class="txt">' + esc(r.title) +
+             '<span class="meta">' + Math.round(r.endMin - r.start) + ' min' + link + (flags ? ' · ' + flags : '') + '</span></span></li>';
+    }).join("") + '</ol>';
+  }
+  function agendaView(){
+    if (calState === "idle") return '<p class="muted">Pulsa Actualizar para leer tu calendario.</p>';
+    if (calState === "loading" && !calEvents.length) return '<p class="muted">Leyendo tu calendario…</p>';
+    if (calState === "error" && !calEvents.length) return '<p class="warn">' + esc(calErr) + '</p>';
+    var n = +document.getElementById("agendaRange").value || 1, out = "";
+    for (var i = 0; i < n; i++) {
+      var ds = addDays(todayISO, i);
+      out += '<h4 class="sub2">' + esc(dayLabel(ds)) + '</h4>' + agendaHTML(ds);
+    }
+    return out;
+  }
+  function refreshCalendar(){
+    calState = "loading"; renderVida();
+    return callMcp("Google Calendar", "list_events", {
+      startTime: todayISO + "T00:00:00", endTime: addDays(todayISO, 7) + "T00:00:00",
+      timeZone: "America/Mexico_City", pageSize: 100, orderBy: "startTime"
+    }).then(function(p){
+      calEvents = normEvents(p);
+      calState = "ok"; lastSync.calendar = new Date().toISOString(); renderVida();
+    }).catch(function(e){ calState = "error"; calErr = mcpMsg(e); renderVida(); });
+  }
+
+  // ----- Correos -----
+  function isPriority(sender){
+    var s = (sender || "").toLowerCase();
+    return vidaState().priority.some(function(p){ return p && s.indexOf(p) >= 0; });
+  }
+  function mailQuery(){
+    var p = vidaState().priority;
+    var from = p.length ? " OR " + p.map(function(s){ return "from:" + s; }).join(" OR ") : "";
+    return "in:inbox newer_than:2d (is:unread" + from + ")";
+  }
+  function classifyNew(){
+    var v = vidaState();
+    var todo = mailThreads.filter(function(t){ return !v.emails[t.id]; });
+    if (!todo.length) { renderVida(); return Promise.resolve(); }
+    return getSample().then(function(sample){
+      if (!sample) { sampleOK = false; renderVida(); return; }
+      var items = todo.map(function(t){
+        return { id:t.id, remitente:t.sender, asunto:t.subject, fragmento:t.snippet, remitente_prioritario:isPriority(t.sender) };
+      });
+      var prompt = "Hoy es " + todayISO + " (America/Mexico_City). Clasifica cada correo en una categoría:\n" +
+        "- \"responder_hoy\": pregunta directa, solicitud con fecha, o remitente prioritario.\n" +
+        "- \"informativo\": boletines y notificaciones.\n" +
+        "No uses \"esperando_respuesta\". Responde solo con un arreglo JSON, un objeto por correo: " +
+        "{\"id\": string (el mismo id), \"categoria\": \"responder_hoy\" | \"informativo\", " +
+        "\"resumen_una_linea\": string en español de máximo 15 palabras, " +
+        "\"fecha_limite_detectada\": \"YYYY-MM-DD\" o null}.\n\nCorreos:\n" + JSON.stringify(items);
+      return sample.json(prompt, { modelTier:"quick" }).then(function(out){
+        sampleOK = true;
+        (Array.isArray(out) ? out : []).forEach(function(r){
+          var t = todo.find(function(x){ return x.id === r.id; });
+          if (!t) return;
+          var cat = CATS.indexOf(r.categoria) >= 0 && r.categoria !== "esperando_respuesta" ? r.categoria : "informativo";
+          v.emails[t.id] = {
+            gmail_thread_id: t.id, categoria: cat,
+            resumen_una_linea: String(r.resumen_una_linea || t.subject).slice(0, 160),
+            fecha_limite_detectada: /^\d{4}-\d{2}-\d{2}$/.test(r.fecha_limite_detectada || "") ? r.fecha_limite_detectada : null,
+            asunto: t.subject, remitente: t.sender, link: t.link, updated_at: new Date().toISOString()
+          };
+        });
+        saveVida(); renderVida();
+      }, function(e){ sampleOK = false; renderVida(); });
+    });
+  }
+  function loadMail(){
+    mailState = "loading"; renderVida();
+    return callMcp("Gmail", "search_threads", { query: mailQuery(), pageSize: 30, view: "THREAD_VIEW_MINIMAL" })
+      .then(function(p){
+        mailThreads = ((p && p.threads) || []).map(function(t){
+          var m = (t.messages || [])[0] || {};
+          return { id: t.id, subject: m.subject || "(sin asunto)", sender: m.sender || "", snippet: m.snippet || "",
+                   date: m.date || "", link: t.viewUrl || m.viewUrl || "" };
+        });
+        mailState = "ok"; lastSync.gmail = new Date().toISOString();
+        return classifyNew();
+      })
+      .catch(function(e){ mailState = "error"; mailErr = mcpMsg(e); renderVida(); });
+  }
+  function mailHTML(){
+    if (mailState === "idle") return '<p class="muted">Pulsa Actualizar para leer tus correos.</p>';
+    if (mailState === "loading") return '<p class="muted">Leyendo correos…</p>';
+    if (mailState === "error") return '<p class="warn">' + esc(mailErr) + '</p>';
+    var v = vidaState(), counts = { responder_hoy:0, esperando_respuesta:0, informativo:0 }, pending = 0, cards = [];
+    mailThreads.forEach(function(t){
+      var c = v.emails[t.id];
+      if (!c) { pending++; return; }
+      counts[c.categoria] = (counts[c.categoria] || 0) + 1;
+      if (c.categoria !== "informativo") cards.push({ t:t, c:c });
+    });
+    cards.sort(function(a, b){ return (a.c.categoria === "responder_hoy" ? 0 : 1) - (b.c.categoria === "responder_hoy" ? 0 : 1); });
+    var labels = { responder_hoy:"Responder hoy", esperando_respuesta:"Esperando respuesta" };
+    var head = '<p class="muted">Responder hoy: ' + counts.responder_hoy + ' · Esperando respuesta: ' + counts.esperando_respuesta +
+               ' · Informativos: ' + counts.informativo + (pending ? ' · sin clasificar: ' + pending : '') + '</p>';
+    if (!cards.length) return head + '<p class="muted">Nada que responder por ahora.</p>';
+    return head + cards.map(function(x){
+      return '<div class="mcard"><span class="src">' + esc(labels[x.c.categoria] || x.c.categoria) + '</span>' +
+             '<div>' + esc(x.c.resumen_una_linea) + '</div>' +
+             '<span class="meta">' + esc(x.c.remitente || "") + (x.c.fecha_limite_detectada ? ' · fecha ' + esc(fmtDay(x.c.fecha_limite_detectada)) : '') + '</span>' +
+             (x.c.link ? '<a class="linkBtn" target="_blank" rel="noopener" href="' + esc(x.c.link) + '">Abrir hilo en Gmail</a>' : '') +
+             '</div>';
+    }).join("");
+  }
+
+  // ----- Tareas -----
+  function parseTask(text){
+    var fallback = { titulo:text, descripcion:"", fecha_limite:null, prioridad:"media" };
+    return getSample().then(function(sample){
+      if (!sample) return fallback;
+      var prompt = "Hoy es " + todayISO + " (America/Mexico_City). Convierte esta frase en una tarea. " +
+        "Responde solo con un objeto JSON: {\"titulo\": string corto, \"descripcion\": string breve o \"\", " +
+        "\"fecha_limite\": \"YYYY-MM-DD\" o null, \"prioridad\": \"alta\" | \"media\" | \"baja\"}. " +
+        "Interpreta días como \"el viernes\" como el próximo viernes (hoy, si hoy es viernes).\n\nFrase: " + text;
+      return sample.json(prompt, { modelTier:"quick" }).then(function(o){
+        var out = Object.assign({}, fallback, (o && typeof o === "object" && !Array.isArray(o)) ? o : {});
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(out.fecha_limite || "")) out.fecha_limite = null;
+        if (!PRIO_RANK.hasOwnProperty(out.prioridad)) out.prioridad = "media";
+        out.titulo = String(out.titulo || text).slice(0, 200);
+        return out;
+      }, function(){ sampleOK = false; return fallback; });
+    });
+  }
+  function addTaskFromText(text){
+    text = (text || "").trim();
+    if (!text) return;
+    parseTask(text).then(function(t){
+      var id = newId("t");
+      vidaState().tasks[id] = {
+        id:id, titulo:t.titulo, descripcion:t.descripcion || "", fecha_limite:t.fecha_limite,
+        prioridad:t.prioridad, estado:"pendiente", proyecto:"", created_at:new Date().toISOString()
+      };
+      saveVida(); renderVida();
+    });
+  }
+  function taskGroups(){
+    var g = { vencidas:[], hoy:[], proximos:[], sin:[] }, lim = addDays(todayISO, 3), tasks = vidaState().tasks;
+    Object.keys(tasks).forEach(function(id){
+      var t = tasks[id];
+      if (t.estado === "hecha") return;
+      var f = t.fecha_limite;
+      if (!f) g.sin.push(t);
+      else if (f < todayISO) g.vencidas.push(t);
+      else if (f === todayISO) g.hoy.push(t);
+      else if (f <= lim) g.proximos.push(t);
+    });
+    Object.keys(g).forEach(function(k){
+      g[k].sort(function(a, b){
+        return (PRIO_RANK[a.prioridad] - PRIO_RANK[b.prioridad]) || ((a.fecha_limite || "") < (b.fecha_limite || "") ? -1 : 1);
+      });
+    });
+    return g;
+  }
+  function taskRow(t){
+    var sym = t.estado === "en_progreso" ? "◐" : "·";
+    return '<li class="' + (t.estado === "en_progreso" ? "prog" : "") + '">' +
+      '<button class="mk ' + (t.estado === "en_progreso" ? "missed" : "") + '" data-tstate="' + esc(t.id) + '" aria-label="Cambiar estado de ' + esc(t.titulo) + '">' + sym + '</button>' +
+      '<span class="txt">' + esc(t.titulo) + '<span class="meta">' + esc(t.prioridad) + (t.fecha_limite ? ' · ' + esc(fmtDay(t.fecha_limite)) : ' · sin fecha') + '</span></span>' +
+      '<input type="date" class="tdate" data-tdate="' + esc(t.id) + '" value="' + esc(t.fecha_limite || "") + '" aria-label="Fecha límite">' +
+      '<button class="del" data-tdel="' + esc(t.id) + '" aria-label="Borrar tarea">×</button></li>';
+  }
+  function tasksHTML(){
+    var g = taskGroups();
+    function part(title, arr){
+      return '<h4 class="sub2">' + title + ' (' + arr.length + ')</h4>' +
+        (arr.length ? '<ul class="tasks vtask">' + arr.map(taskRow).join("") + '</ul>' : '<p class="muted">Nada aquí.</p>');
+    }
+    return part("Vencidas", g.vencidas) + part("Hoy", g.hoy) + part("Próximos 3 días", g.proximos) +
+           (g.sin.length ? part("Sin fecha", g.sin) : "");
+  }
+
+  // ----- Resumen de una línea, alertas y conexiones -----
+  function oneLiner(){
+    if (calState === "idle") return "Pulsa Actualizar para leer tu calendario y tus correos.";
+    if (calState === "loading" && !calEvents.length) return "Leyendo tu calendario…";
+    if (calState === "error" && !calEvents.length) return "No pude leer tu calendario: " + calErr;
+    var d = dayAgenda(todayISO), meetings = d.rows.filter(function(r){ return r.type === "ev"; }).length;
+    var hours = (d.free / 60).toFixed(1).replace(/\.0$/, "");
+    var g = taskGroups(), top = g.vencidas[0] || g.hoy[0] || g.proximos[0];
+    var tail = top ? "la tarea más importante es «" + top.titulo + "»" + (g.vencidas[0] ? " (vencida)" : "") : "no tienes tareas urgentes";
+    return "Hoy tienes " + meetings + (meetings === 1 ? " reunión" : " reuniones") + ", " + hours + " h libres y " + tail + ".";
+  }
+  function alertsHTML(){
+    var v = vidaState(), out = [];
+    Object.keys(v.emails).forEach(function(id){
+      var e = v.emails[id];
+      if (calState === "ok" && e.fecha_limite_detectada && e.fecha_limite_detectada >= todayISO &&
+          !calEvents.some(function(x){ return x.date === e.fecha_limite_detectada; })) {
+        out.push("El correo «" + e.resumen_una_linea + "» menciona el " + fmtDay(e.fecha_limite_detectada) + " y el calendario no tiene nada ese día.");
+      }
+    });
+    if (calState !== "ok") return '<p class="muted">Necesito tu calendario para revisar la agenda. Pulsa Actualizar.</p>' +
+      (out.length ? '<ul class="alerts">' + out.map(function(x){ return '<li>' + esc(x) + '</li>'; }).join("") + '</ul>' : "");
+    calEvents.filter(function(e){ return e.date === todayISO && !e.allDay && !e.link && !e.hasDesc; })
+      .forEach(function(e){ out.push("«" + e.title + "» es hoy y no tiene enlace de videollamada ni descripción."); });
+    var hoyTareas = taskGroups().hoy;
+    if (hoyTareas.length && dayAgenda(todayISO).free === 0)
+      out.push("Tienes " + hoyTareas.length + " tarea(s) para hoy y ningún bloque libre de 45 min en la agenda.");
+    for (var i = 0; i < 7; i++) {
+      var ds = addDays(todayISO, i), m = dayAgenda(ds).meet;
+      if (m > 360) out.push(fmtDay(ds) + " tiene " + (m / 60).toFixed(1) + " h de reuniones (más de 6 h).");
+    }
+    return out.length
+      ? '<ul class="alerts">' + out.map(function(x){ return '<li>' + esc(x) + '</li>'; }).join("") + '</ul>'
+      : '<p class="muted">Sin alertas.</p>';
+  }
+  function stateLabel(st, err){
+    if (st === "ok") return '<span class="okDot">Conectado</span>';
+    if (st === "loading") return '<span class="muted">Leyendo…</span>';
+    if (st === "error") return '<span class="warn">Revisar</span> <span class="muted">' + esc(err) + '</span>';
+    return '<span class="muted">Sin leer todavía</span>';
+  }
+  function connectionsHTML(){
+    var auth = function(name){
+      var s = (connInfo || []).find(function(x){ return x.server === name; });
+      return s ? s.auth : null;
+    };
+    function row(label, name, st, err, last, retry){
+      return '<div class="pendRow"><div><b>' + label + '</b><span class="meta">' +
+        (last ? 'Última sincronización: ' + esc(new Date(last).toLocaleString("es-MX")) : 'Sin sincronizar') +
+        (auth(name) === "needs_reauth" ? ' · <span class="warn">vuelve a conectar</span>' : '') + '</span></div>' +
+        '<div>' + stateLabel(st, err) + ' <button class="btn" data-retry="' + retry + '">Reintentar</button></div></div>';
+    }
+    return row("Google Calendar", "Google Calendar", calState, calErr, lastSync.calendar, "calendar") +
+      row("Gmail", "Gmail", mailState, mailErr, lastSync.gmail, "gmail") +
+      '<p class="muted" style="margin-top:8px">Clasificación con IA: ' + (sampleOK ? 'disponible' : 'no disponible, las tareas se guardan tal cual escribiste') + '.</p>' +
+      '<p class="muted">Para reconectar una cuenta, hazlo en claude.ai › Configuración › Conectores. Esta app no puede cambiar tus credenciales.</p>';
+  }
+  function checkConnections(){
+    return getMcp().then(function(mcp){
+      if (!mcp) { connInfo = []; renderVida(); return; }
+      return mcp.listTools().then(function(r){
+        connInfo = (r.servers || []).map(function(s){ return { server:s.server, auth:s.authStatus }; });
+        renderVida();
+      });
+    }).catch(function(){ connInfo = []; renderVida(); });
+  }
+  function refreshAll(){
+    checkConnections();
+    return Promise.all([refreshCalendar(), loadMail()]);
+  }
+  function renderVida(){
+    if (!document.getElementById("panel-vida")) return;
+    var el = function(id){ return document.getElementById(id); };
+    el("oneLiner").textContent = oneLiner();
+    el("agendaBox").innerHTML = agendaView();
+    el("mailBox").innerHTML = mailHTML();
+    el("taskBox").innerHTML = tasksHTML();
+    el("alertBox").innerHTML = alertsHTML();
+    el("connBox").innerHTML = connectionsHTML();
+    var pi = el("prioInput");
+    if (document.activeElement !== pi) pi.value = vidaState().priority.join(", ");
+  }
+
+  setTab("vida");
+  render();
+
+  // Conexión a la nube. Si no hay (archivo abierto suelto), funciona con localStorage.
+  (async function connect(){
+    var db = null;
+    try { db = window.claude && window.claude.use ? await window.claude.use("db") : null; } catch(e) { db = null; }
+    if (db) { startDB(db); startVidaDB(db); }
+    else setMsg("Sin nube: los datos solo se guardan en este navegador.");
+  })();
+})();
+</script>
+</body>
+</html>
