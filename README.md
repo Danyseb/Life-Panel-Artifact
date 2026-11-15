@@ -16,6 +16,11 @@ Sin esos permisos, la pestaña «Mi día» muestra que no hay conexión y el res
 - **Planear:** pendientes con lugar y horario; ordena la ruta y genera el enlace de Google Maps.
 - **Mes y Estadísticas:** cumplimiento por día y por tarea.
 - **Modo claro y oscuro** con un switch arriba.
+- **Respaldo:** copiar o descargar los datos en JSON, el historial en CSV, cargar un respaldo y recuperar la copia anterior.
+
+## Cómo guarda los datos
+
+Con el permiso `db`, cada día, tarea, correo clasificado y la configuración son un documento aparte. Solo se envía lo que cambió, así que dos dispositivos abiertos a la vez no se pisan. Lo que no se pudo enviar queda guardado en el navegador y se reintenta solo; un indicador arriba muestra el estado. Sin ese permiso, todo vive en el `localStorage` de ese navegador bajo la clave `panel-vida-v2`.
 
 ## Privacidad
 
