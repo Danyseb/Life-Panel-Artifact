@@ -7,186 +7,335 @@
 <body>
 <title>Panel de vida</title>
 <meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
-/* Una columna de tarjetas con pestañas. Modo claro: blanco + azul. Modo oscuro: negro + naranja.
-   Acentos, pestañas y marcos usan el color secundario. */
+/* Tablero de uso diario: pestañas fijas arriba, tarjetas en una columna en móvil y en dos en escritorio.
+   Claro: blanco + azul. Oscuro: negro + naranja. Un acento por tema; pestañas, marcos y foco usan ese acento. */
 :root, :root[data-theme="light"]{
-  --bg:#F3F7FD; --surface:#FFFFFF; --ink:#0E2A47; --ink-soft:#5A6F88; --line:#C7D9EE; --field:#7F9BC0;
-  --accent:#2F6FC0; --accent-soft:#E4EEFA; --done-ink:#FFFFFF; --miss-bg:#E4ECF7; --miss-ink:#4A6284;
-  --track:#E1EAF6;
+  /* Color */
+  --bg:#F4F7FB; --surface:#FFFFFF; --sunken:#EDF2F8;
+  --ink:#0E2A47; --ink-soft:#536A86;
+  --line:#D3DFEE; --field:#6F8DB5;
+  --accent:#2563B0; --accent-hover:#1E5598; --accent-soft:#E3EDF9; --done-ink:#FFFFFF;
+  --miss-bg:#E4EBF4; --miss-ink:#4A6284; --track:#E1E9F3;
+  --ok:#1D7A4A; --warn:#8F5300; --warn-soft:#FBF1E1; --err:#B42318; --err-soft:#FDECEA;
+  --shadow-1:0 1px 2px rgba(14,42,71,.06), 0 1px 1px rgba(14,42,71,.04);
+  --shadow-2:0 8px 28px rgba(14,42,71,.22);
+  /* Tipo */
+  --font:"IBM Plex Sans", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --mono:ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --fs-xs:12px; --fs-sm:13px; --fs-md:15px; --fs-lg:17px; --fs-xl:20px; --fs-2xl:24px;
+  /* Espacio, radios, movimiento */
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px; --s7:48px;
+  --r-sm:6px; --r:10px; --r-lg:14px; --r-pill:999px;
+  --ctl:36px; --t:160ms ease;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --bg:#0A0A0A; --surface:#141414; --ink:#F4F4F4; --ink-soft:#A8A8A8; --line:#5C3A14; --field:#8A5A22;
-    --accent:#FF8A1F; --accent-soft:#2A1A0B; --done-ink:#0A0A0A; --miss-bg:#262626; --miss-ink:#B5B5B5;
-    --track:#262626;
+    --bg:#0B0B0B; --surface:#151515; --sunken:#1E1E1E;
+    --ink:#F4F4F4; --ink-soft:#A9A9A9;
+    --line:#4A3018; --field:#A06A2C;
+    --accent:#FF8A1F; --accent-hover:#FF9F47; --accent-soft:#2A1A0B; --done-ink:#0B0B0B;
+    --miss-bg:#262626; --miss-ink:#B5B5B5; --track:#262626;
+    --ok:#5FCF8E; --warn:#F2C14E; --warn-soft:#2A220F; --err:#FF7B72; --err-soft:#2C1513;
+    --shadow-1:none; --shadow-2:0 8px 28px rgba(0,0,0,.6);
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"]{
-  --bg:#0A0A0A; --surface:#141414; --ink:#F4F4F4; --ink-soft:#A8A8A8; --line:#5C3A14; --field:#8A5A22;
-  --accent:#FF8A1F; --accent-soft:#2A1A0B; --done-ink:#0A0A0A; --miss-bg:#262626; --miss-ink:#B5B5B5;
-  --track:#262626;
+  --bg:#0B0B0B; --surface:#151515; --sunken:#1E1E1E;
+  --ink:#F4F4F4; --ink-soft:#A9A9A9;
+  --line:#4A3018; --field:#A06A2C;
+  --accent:#FF8A1F; --accent-hover:#FF9F47; --accent-soft:#2A1A0B; --done-ink:#0B0B0B;
+  --miss-bg:#262626; --miss-ink:#B5B5B5; --track:#262626;
+  --ok:#5FCF8E; --warn:#F2C14E; --warn-soft:#2A220F; --err:#FF7B72; --err-soft:#2C1513;
+  --shadow-1:none; --shadow-2:0 8px 28px rgba(0,0,0,.6);
   color-scheme: dark;
 }
+
+/* ---------- Base ---------- */
 [hidden]{display:none !important}
 *{box-sizing:border-box}
 body{
   margin:0; background:var(--bg); color:var(--ink);
-  font:15px/1.5 -apple-system,"Segoe UI",system-ui,sans-serif;
+  font:400 var(--fs-md)/1.5 var(--font);
+  -webkit-font-smoothing:antialiased;
   padding-left:max(16px, env(safe-area-inset-left, 0px));
   padding-right:max(16px, env(safe-area-inset-right, 0px));
 }
-.wrap{max-width:1040px; margin:0 auto; padding-block:24px 72px}
-h1{font-size:26px; margin:0; letter-spacing:-0.01em; text-wrap:balance}
-.sub{margin:4px 0 0; color:var(--ink-soft)}
-.hdrRow{display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap}
-.hdrSide{display:flex; flex-direction:column; align-items:flex-end; gap:6px; margin-left:auto}
-.switch{display:inline-flex; align-items:center; gap:8px; cursor:pointer; font:inherit; font-size:13px; color:var(--ink-soft); background:none; border:none; padding:0; margin-top:4px; user-select:none}
-.switch .track2{width:42px; height:22px; border-radius:999px; background:var(--track); border:1px solid var(--line); position:relative; transition:background .2s; flex:0 0 auto}
-.switch .track2::after{content:""; position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%; background:var(--accent); transition:transform .2s}
-.switch[aria-checked="true"] .track2::after{transform:translateX(20px)}
-.switch:focus-visible{outline:2px solid var(--accent); outline-offset:3px; border-radius:6px}
-.syncRow{display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-content:flex-end}
-.chip{font-size:12px; color:var(--ink-soft); border:1px solid var(--line); border-radius:999px; padding:3px 10px; background:var(--surface); display:inline-flex; gap:6px; align-items:center; text-align:left}
-.chip::before{content:""; width:8px; height:8px; border-radius:50%; background:var(--accent); flex:0 0 auto}
-.chip[data-state="busy"]::before{background:var(--ink-soft)}
-.chip[data-state="warn"]{color:var(--ink); border-color:var(--ink-soft); font-weight:600}
-.chip[data-state="warn"]::before{background:transparent; border:2px solid var(--ink)}
-.tabs{display:flex; gap:4px; margin-top:20px; border-bottom:1px solid var(--line); overflow-x:auto}
-.tab{font:inherit; background:none; border:none; padding:10px 14px; color:var(--ink-soft); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; white-space:nowrap}
-.tab[aria-selected="true"]{color:var(--accent); border-bottom-color:var(--accent); font-weight:600}
-.panel{margin-top:20px}
-.card{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:16px; min-width:0}
-.card + .card{margin-top:16px}
-.toolbar{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:12px}
-.toolbar h2{font-size:18px; margin:0 auto 0 0; text-transform:capitalize}
-.btn{font:inherit; font-size:13px; padding:7px 12px; border-radius:8px; border:1px solid var(--field); background:var(--surface); color:var(--ink); cursor:pointer; text-decoration:none; display:inline-block}
-.btn.primary{background:var(--accent); color:var(--done-ink); border-color:var(--accent)}
-.btn.danger{color:var(--ink-soft)}
-.btn[disabled]{opacity:.55; cursor:default}
-button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, a:focus-visible, summary:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+body::before{content:""; position:fixed; inset:0 0 auto; height:env(safe-area-inset-top, 0px); z-index:10; background:var(--bg)}
+.wrap{max-width:1200px; margin:0 auto; padding-block:var(--s5) var(--s7)}
+h1, h2, h3, h4{font-weight:600; text-wrap:balance}
+h1{font-size:var(--fs-2xl); line-height:1.2; margin:0; letter-spacing:-0.015em}
+.sub{margin:var(--s1) 0 0; color:var(--ink-soft); font-size:var(--fs-sm); max-width:62ch}
 .muted{color:var(--ink-soft)}
-.sec{font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-soft); margin:0 0 8px; font-weight:600}
-.track{height:9px; background:var(--track); border-radius:999px; overflow:hidden}
-.fill{height:100%; border-radius:999px; background:var(--accent); width:0; transition:width .2s}
-.dayHead{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:10px}
-.dayHead .info{flex:1 1 220px; min-width:0}
-.dayHead h2{font-size:20px; margin:0; text-transform:capitalize; text-wrap:balance}
-.score{font-variant-numeric:tabular-nums; font-size:14px; color:var(--ink-soft); margin-top:2px}
-.pick{display:flex; align-items:center; gap:8px; color:var(--ink-soft); font-size:13px; flex-wrap:wrap}
-input, select{font:inherit; padding:7px 9px; border-radius:8px; border:1px solid var(--field); background:var(--bg); color:var(--ink); min-width:0}
-.tasks{list-style:none; margin:0; padding:0}
-.tasks li{display:grid; grid-template-columns:auto 96px minmax(0,1fr) auto; gap:10px; align-items:center; padding:9px 0; border-top:1px solid var(--line)}
-.tasks li:first-child{border-top:none}
-.tasks .txt{min-width:0; overflow-wrap:anywhere}
-.tasks .meta{display:block; font-size:12.5px; color:var(--ink-soft)}
-.tasks li.done .txt{color:var(--accent)}
-.tasks li.missed .txt{color:var(--miss-ink); text-decoration:line-through}
-.tasks .time{font-variant-numeric:tabular-nums; color:var(--ink-soft)}
-.tin{font-size:13px; padding:5px 6px; width:100%; font-variant-numeric:tabular-nums}
-.editIn{width:100%}
-.src{font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-soft)}
+b, strong{font-weight:600}
+a{color:var(--accent)}
+.sr{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+
+/* ---------- Encabezado ---------- */
+.hdrRow{display:flex; align-items:flex-start; justify-content:space-between; gap:var(--s3) var(--s5); flex-wrap:wrap}
+.hdrRow > :first-child{flex:1 1 320px; min-width:0}
+.hdrSide{display:flex; align-items:center; gap:var(--s3); flex-wrap:wrap}
+.switch{display:inline-flex; align-items:center; gap:var(--s2); cursor:pointer; font:inherit; font-size:var(--fs-sm); color:var(--ink-soft); background:none; border:none; padding:var(--s1) 0; user-select:none; border-radius:var(--r-sm)}
+.switch:hover{color:var(--ink)}
+.switch .track2{width:40px; height:22px; border-radius:var(--r-pill); background:var(--track); border:1px solid var(--field); position:relative; flex:0 0 auto; transition:background var(--t), border-color var(--t)}
+.switch .track2::after{content:""; position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%; background:var(--accent); transition:transform var(--t)}
+.switch[aria-checked="true"] .track2::after{transform:translateX(18px)}
+.syncRow{display:flex; align-items:center; gap:var(--s2); flex-wrap:wrap}
+.chip{font-size:var(--fs-xs); font-weight:500; color:var(--ink-soft); border:1px solid var(--line); border-radius:var(--r-pill); padding:var(--s1) var(--s3); background:var(--surface); display:inline-flex; gap:var(--s2); align-items:center; text-align:left; line-height:1.4}
+.chip::before{content:""; width:8px; height:8px; border-radius:50%; background:var(--ok); flex:0 0 auto}
+.chip[data-state="busy"]::before{background:var(--ink-soft); animation:pulse 1.2s ease-in-out infinite}
+.chip[data-state="warn"]{color:var(--warn); border-color:var(--warn); background:var(--warn-soft)}
+.chip[data-state="warn"]::before{background:var(--warn)}
+@keyframes pulse{50%{opacity:.35}}
+
+/* ---------- Pestañas (fijas al desplazar) ---------- */
+.tabs{
+  display:flex; gap:var(--s1); margin-top:var(--s5); border-bottom:1px solid var(--line);
+  overflow-x:auto; scrollbar-width:none;
+  position:sticky; top:env(safe-area-inset-top, 0px); z-index:5; background:var(--bg);
+}
+.tabs::-webkit-scrollbar{display:none}
+.tab{font:inherit; font-size:var(--fs-md); font-weight:500; background:none; border:none; padding:var(--s3) var(--s3); color:var(--ink-soft); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; white-space:nowrap; transition:color var(--t), border-color var(--t)}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{color:var(--accent); border-bottom-color:var(--accent); font-weight:600}
+.tab:focus-visible{outline-offset:-2px; border-radius:var(--r-sm) var(--r-sm) 0 0}
+
+/* ---------- Paneles, columnas y tarjetas ---------- */
+.panel{margin-top:var(--s5); display:flex; flex-direction:column; gap:var(--s4)}
+.cols{display:grid; gap:var(--s4); align-items:start}
+.col{display:flex; flex-direction:column; gap:var(--s4); min-width:0}
+.card{background:var(--surface); border:1px solid var(--line); border-radius:var(--r-lg); padding:var(--s4); min-width:0; box-shadow:var(--shadow-1)}
+.card.hero{border-color:var(--field)}
+.sec{font-size:var(--fs-xs); text-transform:uppercase; letter-spacing:.07em; color:var(--ink-soft); margin:0 0 var(--s3); font-weight:600}
+.cardHead{display:flex; flex-wrap:wrap; gap:var(--s2); align-items:center; justify-content:space-between; margin-bottom:var(--s3)}
+.cardHead .sec{margin:0}
+.cardHead select{font-size:var(--fs-sm); min-height:32px}
+.note{margin:var(--s3) 0 0; font-size:var(--fs-sm); color:var(--ink-soft)}
+.lead{font-size:var(--fs-xl); line-height:1.35; margin:0; font-weight:500; max-width:52ch}
+.toolbar{display:flex; flex-wrap:wrap; gap:var(--s2); align-items:center}
+.toolbar h2{font-size:var(--fs-xl); margin:0 auto 0 var(--s1)}
+
+/* ---------- Botones ---------- */
+.btn{
+  font:inherit; font-size:var(--fs-sm); font-weight:500; line-height:1.2;
+  min-height:var(--ctl); padding:var(--s2) var(--s3); border-radius:var(--r);
+  border:1px solid var(--field); background:var(--surface); color:var(--ink);
+  cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; justify-content:center; gap:var(--s2);
+  transition:background var(--t), border-color var(--t), color var(--t);
+}
+.btn:hover{background:var(--sunken); border-color:var(--accent)}
+.btn:active{background:var(--accent-soft)}
+.btn.primary{background:var(--accent); color:var(--done-ink); border-color:var(--accent); font-weight:600}
+.btn.primary:hover{background:var(--accent-hover); border-color:var(--accent-hover)}
+.btn.primary:active{background:var(--accent)}
+.btn.danger{color:var(--err); border-color:var(--err)}
+.btn.danger:hover{background:var(--err-soft)}
+.btn.icon{width:var(--ctl); padding:0; font-size:var(--fs-lg)}
+.btn[disabled], .btn[aria-disabled="true"]{opacity:.5; cursor:not-allowed; background:var(--surface); border-color:var(--field)}
+.btn.primary[disabled]{background:var(--accent); border-color:var(--accent)}
+.linkBtn, .dayBtn{font:inherit; background:none; border:none; color:var(--accent); cursor:pointer; padding:2px 0; text-decoration:underline; text-decoration-color:color-mix(in srgb, var(--accent) 40%, transparent); text-underline-offset:3px; text-align:left; border-radius:var(--r-sm)}
+.linkBtn:hover, .dayBtn:hover{text-decoration-color:currentColor}
+.del, .edit{background:none; border:none; color:var(--ink-soft); cursor:pointer; font-size:20px; line-height:1; padding:0 var(--s1); min-width:32px; min-height:32px; border-radius:var(--r-sm); display:inline-flex; align-items:center; justify-content:center; transition:background var(--t), color var(--t)}
+.del:hover{background:var(--err-soft); color:var(--err)}
+.edit{font-size:var(--fs-md)}
+.edit:hover{background:var(--sunken); color:var(--ink)}
 .acts{display:inline-flex; align-items:center; gap:2px; white-space:nowrap}
-.del, .edit{background:none; border:none; color:var(--ink-soft); cursor:pointer; font-size:20px; line-height:1; padding:0 4px; min-width:30px; min-height:30px; border-radius:6px}
-.edit{font-size:15px}
-.mk{width:32px; height:32px; border-radius:8px; border:1px solid var(--field); background:var(--surface); color:var(--ink-soft); cursor:pointer; font:inherit; font-weight:700}
-.mk.done{background:var(--accent); color:var(--done-ink); border-color:var(--accent)}
-.mk.missed{background:var(--miss-bg); color:var(--miss-ink); border-color:transparent}
-.formGrid{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin-top:12px}
+
+/* ---------- Campos ---------- */
+input, select, textarea{font:inherit; font-size:var(--fs-md); color:var(--ink); min-width:0}
+input, select{min-height:var(--ctl); padding:var(--s1) var(--s3); border-radius:var(--r); border:1px solid var(--field); background:var(--surface); transition:border-color var(--t), box-shadow var(--t)}
+input::placeholder, textarea::placeholder{color:var(--ink-soft); opacity:1}
+input:hover, select:hover{border-color:var(--accent)}
+input:focus-visible, select:focus-visible, textarea:focus-visible{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft)}
+input[disabled], select[disabled]{opacity:.55; cursor:not-allowed}
+.pick{display:flex; align-items:center; gap:var(--s2); color:var(--ink-soft); font-size:var(--fs-sm); flex-wrap:wrap}
+.grow{flex:1 1 260px}
+.w-coord{width:150px}
+.w-num{width:96px}
+.formRow{display:flex; flex-wrap:wrap; gap:var(--s2); align-items:center; margin-top:var(--s3)}
+.formRow.flush{margin-top:0}
+.formGrid{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:var(--s2)}
 .formGrid .wide{grid-column:span 2}
 .formGrid input{width:100%}
-.formRow{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:12px}
-.pendRow{display:flex; justify-content:space-between; gap:10px; align-items:center; padding:8px 0; border-top:1px solid var(--line); font-size:14px}
-.pendRow:first-child{border-top:none}
+.warn{color:var(--warn); font-weight:600}
+#pMsg{color:var(--err)}
+
+/* ---------- Progreso ---------- */
+.track{height:6px; background:var(--track); border-radius:var(--r-pill); overflow:hidden}
+.fill{height:100%; border-radius:var(--r-pill); background:var(--accent); width:0; transition:width 220ms ease}
+
+/* ---------- Encabezado de día ---------- */
+.dayHead{display:flex; align-items:center; gap:var(--s3); margin-bottom:var(--s3)}
+.dayHead .info{flex:1 1 auto; min-width:0}
+.dayHead h2{font-size:var(--fs-xl); line-height:1.25; margin:0}
+.dayHead h2::first-letter, .toolbar h2::first-letter{text-transform:uppercase}
+.score{font-variant-numeric:tabular-nums; font-size:var(--fs-sm); color:var(--ink-soft); margin-top:2px}
+.dayHead + .toolbar{margin-bottom:var(--s3)}
+
+/* ---------- Listas de tareas ---------- */
+.tasks{list-style:none; margin:0; padding:0}
+.tasks li{display:grid; grid-template-columns:auto 104px minmax(0,1fr) auto; gap:var(--s3); align-items:center; padding:var(--s2) 0; border-top:1px solid var(--line)}
+.tasks li:first-child{border-top:none; padding-top:0}
+.tasks .txt{min-width:0; overflow-wrap:anywhere}
+.tasks .meta, .meta{display:block; font-size:var(--fs-sm); color:var(--ink-soft)}
+.tasks li.done .txt{color:var(--ink-soft)}
+.tasks li.missed .txt{color:var(--ink-soft); text-decoration:line-through; text-decoration-color:var(--err)}
+.tasks .time{font-variant-numeric:tabular-nums; color:var(--ink-soft); font-size:var(--fs-sm)}
+.tin{font-size:var(--fs-sm); min-height:32px; padding:var(--s1) var(--s2); width:100%; font-variant-numeric:tabular-nums; background:var(--sunken); border-color:transparent}
+.tin:hover{border-color:var(--field)}
+.editIn{width:100%}
+.src{font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-soft)}
+.mk{width:32px; height:32px; border-radius:var(--r-sm); border:1px solid var(--field); background:var(--surface); color:var(--ink-soft); cursor:pointer; font:inherit; font-weight:600; font-size:var(--fs-md); display:inline-flex; align-items:center; justify-content:center; transition:background var(--t), border-color var(--t), color var(--t)}
+.mk:hover{border-color:var(--accent); color:var(--accent)}
+.mk.done{background:var(--ok); color:var(--done-ink); border-color:var(--ok)}
+.mk.missed{background:var(--err); color:var(--done-ink); border-color:var(--err)}
+.sub2{font-size:var(--fs-sm); margin:var(--s4) 0 var(--s2); font-weight:600}
+.sub2:first-child{margin-top:0}
+.vtask li{grid-template-columns:auto minmax(0,1fr) auto auto}
+.vtask .ttl{font-weight:500}
+.vtask .tctl{display:flex; gap:var(--s2); align-items:center; flex-wrap:wrap}
+.vtask .tdate, .vtask .tprio{font-size:var(--fs-sm); min-height:32px; padding:var(--s1) var(--s2)}
+.vtask li.hecha .txt{text-decoration:line-through; color:var(--ink-soft)}
+.medList{list-style:none; margin:0; padding:0; display:grid; gap:var(--s2)}
+.medList li{display:flex; gap:var(--s2); align-items:center}
+.medList .medIn{flex:1 1 auto}
+.pendRow{display:flex; justify-content:space-between; gap:var(--s3); align-items:center; padding:var(--s2) 0; border-top:1px solid var(--line); font-size:var(--fs-sm)}
+.pendRow:first-child{border-top:none; padding-top:0}
 .pendRow > :first-child{min-width:0; overflow-wrap:anywhere}
-.linkBtn, .dayBtn{font:inherit; background:none; border:none; color:var(--accent); cursor:pointer; padding:2px 0; text-decoration:underline dotted var(--ink-soft); text-align:left}
-.tablewrap{overflow-x:auto; border:1px solid var(--line); border-radius:12px; background:var(--surface)}
-table.grid{border-collapse:collapse; width:100%; min-width:1280px; font-size:13px}
-.grid th, .grid td{padding:6px 3px; border-bottom:1px solid var(--line); text-align:center; white-space:nowrap}
-.grid thead th{font-weight:600; color:var(--ink-soft); font-size:11.5px; background:var(--surface)}
-.grid th.row{text-align:left; padding-left:12px; color:var(--ink); position:sticky; left:0; background:var(--surface); z-index:1}
-.grid thead th:first-child{position:sticky; left:0; z-index:2; text-align:left; padding-left:12px}
+.okDot{color:var(--ok); font-weight:600}
+
+/* ---------- Agenda, ruta, correos, alertas ---------- */
+.tl, .routeList{list-style:none; margin:0; padding:0}
+.tl li{display:grid; grid-template-columns:104px minmax(0,1fr); gap:var(--s3); padding:var(--s2) 0; border-top:1px solid var(--line)}
+.tl li:first-child, .routeList li:first-child{border-top:none}
+.tl li.free{color:var(--ink-soft)}
+.tl li.free .t{color:var(--ink-soft); font-weight:500}
+.tl .t, .routeList .t{font-variant-numeric:tabular-nums; color:var(--accent); font-weight:600; font-size:var(--fs-sm)}
+.tl .txt{min-width:0; overflow-wrap:anywhere}
+.routeList li{display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:var(--s3); padding:var(--s2) 0; border-top:1px solid var(--line); align-items:baseline}
+.mcard{padding:var(--s3) 0; border-top:1px solid var(--line); min-width:0; overflow-wrap:anywhere}
+.mcard:first-child{border-top:none; padding-top:0}
+.mcard .src{display:block; margin-bottom:2px; color:var(--accent)}
+.mcard .linkBtn{margin-top:var(--s1); display:inline-block}
+.alerts{margin:0; padding:0; list-style:none; display:grid; gap:var(--s2)}
+.alerts li{overflow-wrap:anywhere; padding:var(--s2) var(--s3); border-radius:var(--r); background:var(--warn-soft); border-left:3px solid var(--warn); font-size:var(--fs-sm)}
+
+/* Estados vacíos, de carga y de error dentro de cada bloque */
+#agendaBox > p.muted:only-child, #mailBox > p.muted:only-child, #taskBox > p.muted:only-child,
+#alertBox > p.muted:only-child, #pendingList > p.muted:only-child, #routeHoy > p.muted:only-child,
+#routeBox > p.muted:only-child, #planList > li.muted, #lineChart > p.muted, #taskBars > p.muted,
+#weekBars > p.muted, #donut > p.muted{
+  margin:0; padding:var(--s3) var(--s4); border-radius:var(--r); background:var(--sunken);
+  border:1px dashed var(--line); font-size:var(--fs-sm); color:var(--ink-soft)
+}
+#agendaBox > p.warn:only-child, #mailBox > p.warn:only-child, #alertBox > p.warn:only-child{
+  margin:0; padding:var(--s3) var(--s4); border-radius:var(--r); background:var(--err-soft); color:var(--err); font-size:var(--fs-sm)
+}
+
+/* ---------- Mes ---------- */
+.tablewrap{overflow-x:auto; border:1px solid var(--line); border-radius:var(--r-lg); background:var(--surface); box-shadow:var(--shadow-1)}
+table.grid{border-collapse:collapse; width:100%; min-width:1280px; font-size:var(--fs-sm)}
+.grid th, .grid td{padding:var(--s1) 3px; border-bottom:1px solid var(--line); text-align:center; white-space:nowrap}
+.grid thead th{font-weight:600; color:var(--ink-soft); font-size:11.5px; background:var(--surface); padding-block:var(--s3)}
+.grid th.row{text-align:left; padding-left:var(--s3); color:var(--ink); position:sticky; left:0; background:var(--surface); z-index:1; font-weight:500}
+.grid thead th:first-child{position:sticky; left:0; z-index:2; text-align:left; padding-left:var(--s3)}
 .grid tbody tr:last-child td, .grid tbody tr:last-child th{border-bottom:none}
+.grid tbody tr:hover td, .grid tbody tr:hover th.row{background:var(--sunken)}
 .grid tr.today .dayBtn{font-weight:700}
-.grid tr.sel, .grid tr.sel th.row{background:var(--accent-soft)}
+.grid tr.sel td, .grid tr.sel th.row{background:var(--accent-soft)}
 .grid .mk{width:30px; height:30px}
 .pct{font-variant-numeric:tabular-nums; font-weight:600; color:var(--ink)}
-.legend{font-size:13px; color:var(--ink-soft); margin-top:10px}
-.kpis{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px}
-.kpi{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:14px; min-width:0}
-.kpi b{display:block; font-size:26px; font-variant-numeric:tabular-nums; color:var(--accent)}
-.kpi span{color:var(--ink-soft); font-size:13px}
-.grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px}
-.grid2 > .card{min-width:0; margin-top:0}
-.hb{margin-bottom:10px}
-.hb-top{display:flex; justify-content:space-between; gap:8px; font-size:14px}
+.legend{font-size:var(--fs-sm); color:var(--ink-soft); margin:0}
+
+/* ---------- Estadísticas ---------- */
+.kpis{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:var(--s4)}
+.kpi{background:var(--surface); border:1px solid var(--line); border-radius:var(--r-lg); padding:var(--s4); min-width:0; box-shadow:var(--shadow-1)}
+.kpi b{display:block; font-size:var(--fs-2xl); line-height:1.2; font-weight:600; font-variant-numeric:tabular-nums; color:var(--ink)}
+.kpi span{color:var(--ink-soft); font-size:var(--fs-sm)}
+.grid2{display:grid; grid-template-columns:1fr 1fr; gap:var(--s4); align-items:start}
+.grid2 > .card{min-width:0}
+.hb{margin-bottom:var(--s3)}
+.hb:last-child{margin-bottom:0}
+.hb-top{display:flex; justify-content:space-between; gap:var(--s2); font-size:var(--fs-sm); margin-bottom:var(--s1)}
 .hb-top > :first-child{min-width:0; overflow-wrap:anywhere}
+.hb-top > :last-child{font-variant-numeric:tabular-nums; color:var(--ink-soft); white-space:nowrap}
 .chart{width:100%; height:auto; display:block}
-.chart text{fill:var(--ink-soft); font-size:11px}
-.chart .big{fill:var(--ink); font-size:20px; font-weight:700}
-.donutWrap{display:flex; flex-wrap:wrap; gap:16px; align-items:center}
-.donutWrap > div:last-child{flex:1 1 180px; min-width:0}
-.retro li{margin:6px 0}
-.sw{display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:4px; vertical-align:middle}
-.routeList{list-style:none; margin:0; padding:0}
-.routeList li{display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:10px; padding:8px 0; border-top:1px solid var(--line); align-items:baseline}
-.routeList li:first-child{border-top:none}
-.routeList .t{font-variant-numeric:tabular-nums; color:var(--accent); font-weight:600}
-.warn{color:var(--miss-ink); font-weight:600}
-.lead{font-size:17px; margin:0; text-wrap:balance}
-.meta{display:block; font-size:12.5px; color:var(--ink-soft)}
-.sub2{font-size:14px; margin:14px 0 6px; font-weight:600}
-.tl{list-style:none; margin:0; padding:0}
-.tl li{display:grid; grid-template-columns:52px minmax(0,1fr); gap:10px; padding:8px 0; border-top:1px solid var(--line)}
-.tl li:first-child{border-top:none}
-.tl li.free{color:var(--ink-soft); font-style:italic}
-.tl .t{font-variant-numeric:tabular-nums; color:var(--accent); font-weight:600}
-.tl .txt{min-width:0; overflow-wrap:anywhere}
-.vtask li{grid-template-columns:auto minmax(0,1fr) auto auto}
-.vtask .tctl{display:flex; gap:6px; align-items:center; flex-wrap:wrap}
-.vtask .tdate, .vtask .tprio{font-size:13px; padding:5px 6px}
-.vtask li.hecha .txt{text-decoration:line-through; color:var(--ink-soft)}
-.mcard{padding:10px 0; border-top:1px solid var(--line); min-width:0; overflow-wrap:anywhere}
-.mcard:first-child{border-top:none}
-.mcard .src{display:block; margin-bottom:2px}
-.medList{list-style:none; margin:0; padding:0; display:grid; gap:6px}
-.medList li{display:flex; gap:8px; align-items:center}
-.medList .medIn{flex:1 1 auto; min-width:0}
-.alerts{margin:0; padding-left:18px}
-.alerts li{margin:6px 0; overflow-wrap:anywhere}
-.okDot{color:var(--accent); font-weight:600}
-details{margin-top:24px; color:var(--ink-soft); font-size:13px}
-details summary{cursor:pointer}
-details.inner{margin-top:12px; font-size:inherit}
-details textarea{width:100%; min-height:90px; margin-top:8px; font:12px ui-monospace,Menlo,monospace; background:var(--surface); color:var(--ink); border:1px solid var(--field); border-radius:8px; padding:8px}
-.backRow{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:8px}
-.help{margin:8px 0 0; padding-left:18px; color:var(--ink)}
-.help li{margin:4px 0}
-.toast{position:fixed; left:50%; transform:translateX(-50%); bottom:calc(16px + env(safe-area-inset-bottom, 0px)); width:max-content; max-width:min(560px, calc(100vw - 32px)); background:var(--ink); color:var(--bg); border-radius:10px; padding:10px 14px; display:flex; gap:12px; align-items:center; z-index:20; font-size:14px; box-shadow:0 6px 24px rgba(0,0,0,.28)}
+#lineChart .chart{max-height:280px}
+.chart text{fill:var(--ink-soft); font-size:11px; font-family:var(--font)}
+.chart .big{fill:var(--ink); font-size:20px; font-weight:600}
+.donutWrap{display:flex; flex-wrap:wrap; gap:var(--s4); align-items:center}
+.donutWrap > div:last-child{flex:1 1 180px; min-width:0; display:grid; gap:var(--s1); font-size:var(--fs-sm)}
+.retro{margin:0; padding-left:18px}
+.retro li{margin:var(--s2) 0}
+.sw{display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:var(--s2); vertical-align:middle}
+
+/* ---------- Ayuda y ajustes ---------- */
+.foot{margin-top:var(--s6); display:grid; gap:var(--s3)}
+details{background:var(--surface); border:1px solid var(--line); border-radius:var(--r-lg); color:var(--ink); font-size:var(--fs-sm)}
+details > summary{cursor:pointer; padding:var(--s3) var(--s4); font-weight:600; list-style:none; display:flex; align-items:center; gap:var(--s2); border-radius:var(--r-lg); transition:background var(--t)}
+details > summary::-webkit-details-marker{display:none}
+details > summary::before{content:""; width:7px; height:7px; border-right:2px solid var(--ink-soft); border-bottom:2px solid var(--ink-soft); transform:rotate(-45deg); transition:transform var(--t); flex:0 0 auto; margin-right:2px}
+details[open] > summary::before{transform:rotate(45deg)}
+details > summary:hover{background:var(--sunken)}
+details > .body{padding:0 var(--s4) var(--s4)}
+details.inner{margin-top:var(--s4); background:none; border:none; border-radius:0}
+details.inner > summary{padding:var(--s1) 0; font-size:var(--fs-sm); color:var(--ink-soft)}
+details.inner > summary:hover{background:none; color:var(--ink)}
+details textarea{width:100%; min-height:96px; margin-top:var(--s3); font:12px/1.5 var(--mono); background:var(--sunken); color:var(--ink); border:1px solid var(--field); border-radius:var(--r); padding:var(--s2) var(--s3)}
+.setGroup{padding-top:var(--s4); margin-top:var(--s4); border-top:1px solid var(--line)}
+.setGroup:first-child{padding-top:0; margin-top:0; border-top:none}
+.setGroup .sec{margin-bottom:var(--s2)}
+.backRow{display:flex; flex-wrap:wrap; gap:var(--s2); align-items:center; margin-top:var(--s2)}
+label.btn:has(+ #fileIn:focus-visible){outline:2px solid var(--accent); outline-offset:2px}
+.help{margin:0; padding-left:18px; color:var(--ink); display:grid; gap:var(--s2); max-width:72ch}
+
+/* ---------- Aviso con Deshacer ---------- */
+.toast{position:fixed; left:50%; transform:translateX(-50%); bottom:calc(var(--s4) + env(safe-area-inset-bottom, 0px)); width:max-content; max-width:min(560px, calc(100vw - 32px)); background:var(--ink); color:var(--bg); border-radius:var(--r); padding:var(--s3) var(--s4); display:flex; gap:var(--s3); align-items:center; z-index:20; font-size:var(--fs-sm); box-shadow:var(--shadow-2); animation:rise 200ms ease}
 .toast span{min-width:0; overflow-wrap:anywhere}
-.toast button{font:inherit; font-weight:700; background:none; border:none; color:inherit; text-decoration:underline; cursor:pointer; padding:4px; white-space:nowrap}
-.sr{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap}
+.toast button{font:inherit; font-weight:600; background:none; border:none; color:inherit; text-decoration:underline; text-underline-offset:3px; cursor:pointer; padding:var(--s1); white-space:nowrap; border-radius:var(--r-sm)}
+.toast button:focus-visible{outline-color:var(--bg)}
+@keyframes rise{from{opacity:0; transform:translate(-50%, 6px)}}
+
+/* ---------- Escritorio ---------- */
+@media (min-width:761px){
+  .wrap{padding-block:var(--s6) var(--s7)}
+  .card{padding:var(--s5)}
+  details > summary{padding:var(--s3) var(--s5)}
+  details > .body{padding:0 var(--s5) var(--s5)}
+}
+@media (min-width:1024px){
+  .cols{grid-template-columns:minmax(0,1.55fr) minmax(0,1fr)}
+}
+
+/* ---------- Móvil ---------- */
 @media (max-width:760px){
+  .tab{padding:var(--s3) 10px; font-size:14px}
+  .lead{font-size:var(--fs-lg)}
   .grid2{grid-template-columns:1fr}
-  .kpis{grid-template-columns:1fr 1fr}
+  .kpis{grid-template-columns:1fr 1fr; gap:var(--s3)}
   .formGrid{grid-template-columns:1fr 1fr}
   .formGrid .wide{grid-column:span 2}
-  .tasks li{grid-template-columns:auto minmax(0,1fr) auto}
-  .tasks li > .mk{grid-row:1 / span 2; width:38px; height:38px}
+  .w-coord{flex:1 1 120px; width:auto}
+  .tl li{grid-template-columns:88px minmax(0,1fr)}
+  .tasks li{grid-template-columns:auto minmax(0,1fr) auto; column-gap:var(--s3); row-gap:var(--s1)}
+  .tasks li > .mk{grid-row:1 / span 2; width:40px; height:40px}
   .tasks li .tin{grid-column:2; width:auto; justify-self:start}
   .tasks li .txt, .tasks li .editIn{grid-column:2}
   .tasks li > .acts, .tasks li > .src{grid-column:3; grid-row:1 / span 2}
   .tasks li > .time{grid-column:2}
   .vtask li{grid-template-columns:auto minmax(0,1fr) auto}
   .vtask li > .tctl{grid-column:2}
-  .del, .edit{min-width:36px; min-height:36px}
-  .hdrSide{align-items:flex-start; margin-left:0}
-  .syncRow{justify-content:flex-start}
+  .del, .edit{min-width:40px; min-height:40px}
+  .hdrSide{width:100%; justify-content:space-between}
 }
 @media (prefers-reduced-motion: reduce){
-  .fill, .switch .track2, .switch .track2::after{transition:none}
+  *, *::before, *::after{transition:none !important; animation:none !important}
 }
 </style>
 
@@ -197,11 +346,11 @@ details textarea{width:100%; min-height:90px; margin-top:8px; font:12px ui-monos
       <p class="sub">Marca ✓ hecha, ✕ no hecha, · sin marcar. Por la noche agregas lo de mañana y la app acomoda el trayecto.</p>
     </div>
     <div class="hdrSide">
-      <button class="switch" id="themeSwitch" type="button" role="switch" aria-checked="false" aria-label="Modo oscuro"><span class="track2" aria-hidden="true"></span><span id="themeLabel">Modo claro</span></button>
       <div class="syncRow">
         <span class="chip" id="syncChip" role="status" data-state="busy">Conectando…</span>
         <button class="btn" id="syncRetry" type="button" hidden>Reintentar</button>
       </div>
+      <button class="switch" id="themeSwitch" type="button" role="switch" aria-checked="false" aria-label="Modo oscuro"><span class="track2" aria-hidden="true"></span><span id="themeLabel">Modo claro</span></button>
     </div>
   </header>
 
@@ -215,70 +364,78 @@ details textarea{width:100%; min-height:90px; margin-top:8px; font:12px ui-monos
 
   <!-- MI DÍA: agenda, correos, tareas, alertas y conexiones (solo lectura de Calendar y Gmail) -->
   <section class="panel" id="panel-vida" role="tabpanel" aria-labelledby="tab-vida" hidden>
-    <div class="card">
+    <div class="card hero">
       <h3 class="sec">Hoy en una línea</h3>
       <p class="lead" id="oneLiner">Cargando…</p>
-      <div class="formRow" style="margin-top:10px">
+      <div class="formRow">
         <button class="btn primary" id="refreshVida" type="button">Actualizar calendario y correos</button>
-        <span class="muted" id="vidaFresh"></span>
+        <span class="muted" id="vidaFresh" style="font-size:var(--fs-sm)"></span>
       </div>
-      <p class="muted" style="margin:8px 0 0">La app solo lee; no envía, borra ni modifica correos ni eventos.</p>
+      <p class="note">La app solo lee; no envía, borra ni modifica correos ni eventos.</p>
     </div>
 
-    <div class="card">
-      <div class="toolbar">
-        <h3 class="sec" style="margin:0 auto 0 0">Agenda</h3>
-        <label class="pick">Ver
-          <select id="agendaRange" aria-label="Rango de la agenda">
-            <option value="1">Hoy</option>
-            <option value="7">Próximos 7 días</option>
-          </select>
-        </label>
+    <div class="cols">
+      <div class="col">
+        <div class="card">
+          <div class="cardHead">
+            <h3 class="sec">Agenda</h3>
+            <label class="pick">Ver
+              <select id="agendaRange" aria-label="Rango de la agenda">
+                <option value="1">Hoy</option>
+                <option value="7">Próximos 7 días</option>
+              </select>
+            </label>
+          </div>
+          <div id="agendaBox"></div>
+        </div>
+
+        <div class="card">
+          <h3 class="sec">Tareas</h3>
+          <form class="formRow flush" id="taskForm">
+            <input type="text" id="taskText" class="grow" maxlength="200" placeholder='Escribe una tarea con fecha, ej. "pagar luz el viernes"' aria-label="Nueva tarea" required>
+            <button class="btn" type="submit" id="taskAdd">Crear</button>
+          </form>
+          <p class="muted" id="taskMsg" role="status" style="margin:var(--s2) 0 0; font-size:var(--fs-sm)"></p>
+          <div id="taskBox" style="margin-top:var(--s3)"></div>
+        </div>
       </div>
-      <div id="agendaBox"></div>
-    </div>
 
-    <div class="card">
-      <h3 class="sec">Correos de las últimas 48 horas</h3>
-      <div id="mailBox"></div>
-    </div>
+      <div class="col">
+        <div class="card">
+          <h3 class="sec">Correos de las últimas 48 horas</h3>
+          <div id="mailBox"></div>
+        </div>
 
-    <div class="card">
-      <h3 class="sec">Tareas</h3>
-      <form class="formRow" id="taskForm" style="margin-top:0">
-        <input type="text" id="taskText" maxlength="200" placeholder='Escribe una tarea con fecha, ej. "pagar luz el viernes"' aria-label="Nueva tarea" style="flex:1 1 280px" required>
-        <button class="btn primary" type="submit" id="taskAdd">Crear</button>
-      </form>
-      <p class="muted" id="taskMsg" role="status" style="margin:6px 0 0"></p>
-      <div id="taskBox" style="margin-top:8px"></div>
-    </div>
+        <div class="card">
+          <h3 class="sec">Alertas cruzadas</h3>
+          <div id="alertBox"></div>
+        </div>
 
-    <div class="card">
-      <h3 class="sec">Alertas cruzadas</h3>
-      <div id="alertBox"></div>
-    </div>
-
-    <div class="card">
-      <h3 class="sec">Estado de conexiones</h3>
-      <div id="connBox"></div>
-      <div class="formRow" style="margin-top:12px">
-        <label class="pick" for="prioInput">Remitentes prioritarios (separados por coma)</label>
-        <input type="text" id="prioInput" maxlength="400" style="flex:1 1 260px" placeholder="jefe@empresa.com, socio@empresa.com">
-        <button class="btn" id="savePrio" type="button">Guardar</button>
+        <div class="card">
+          <h3 class="sec">Estado de conexiones</h3>
+          <div id="connBox"></div>
+          <div class="setGroup">
+            <label class="pick" for="prioInput" style="margin-bottom:var(--s2)">Remitentes prioritarios (separados por coma)</label>
+            <div class="formRow flush">
+              <input type="text" id="prioInput" class="grow" maxlength="400" placeholder="jefe@empresa.com, socio@empresa.com">
+              <button class="btn" id="savePrio" type="button">Guardar</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </section>
 
   <!-- HOY -->
   <section class="panel" id="panel-hoy" role="tabpanel" aria-labelledby="tab-hoy" hidden>
-    <div class="card">
+    <div class="card hero">
       <div class="dayHead">
-        <button class="btn" type="button" data-shift="-1" aria-label="Día anterior">←</button>
+        <button class="btn icon" type="button" data-shift="-1" aria-label="Día anterior">←</button>
         <div class="info">
           <h2 id="dayTitle"></h2>
           <div class="score" id="dayScore"></div>
         </div>
-        <button class="btn" type="button" data-shift="1" aria-label="Día siguiente">→</button>
+        <button class="btn icon" type="button" data-shift="1" aria-label="Día siguiente">→</button>
       </div>
       <div class="toolbar">
         <button class="btn" id="todayBtn" type="button">Hoy</button>
@@ -287,104 +444,118 @@ details textarea{width:100%; min-height:90px; margin-top:8px; font:12px ui-monos
       <div class="track"><div class="fill" id="dayFill"></div></div>
     </div>
 
-    <div class="card">
-      <h3 class="sec">Ruta del día</h3>
-      <div id="routeHoy"></div>
-    </div>
+    <div class="cols">
+      <div class="col">
+        <div class="card">
+          <h3 class="sec">Cronología del día</h3>
+          <ul class="tasks" id="taskList"></ul>
+          <form class="formRow" id="addForm">
+            <input type="time" id="addTime" aria-label="Hora de la tarea">
+            <input type="text" id="addText" class="grow" maxlength="200" placeholder="Agregar tarea a este día" aria-label="Texto de la tarea" required>
+            <button class="btn primary" type="submit">Agregar</button>
+          </form>
+        </div>
+      </div>
 
-    <div class="card">
-      <h3 class="sec">Cronología del día</h3>
-      <ul class="tasks" id="taskList"></ul>
-      <form class="formRow" id="addForm">
-        <input type="time" id="addTime" aria-label="Hora de la tarea">
-        <input type="text" id="addText" maxlength="200" placeholder="Agregar tarea a este día" aria-label="Texto de la tarea" required style="flex:1 1 240px">
-        <button class="btn primary" type="submit">Agregar</button>
-      </form>
-    </div>
+      <div class="col">
+        <div class="card">
+          <h3 class="sec">Ruta del día</h3>
+          <div id="routeHoy"></div>
+        </div>
 
-    <div class="card">
-      <h3 class="sec">Mis medicinas y suplementos</h3>
-      <p class="muted" style="margin:0 0 8px">Todas van en una sola tarea diaria. Edita un nombre y sal del campo para guardarlo.</p>
-      <ul class="medList" id="medList"></ul>
-      <form class="formRow" id="medForm">
-        <input type="text" id="medNew" maxlength="80" placeholder="Agregar medicina o suplemento" aria-label="Nueva medicina o suplemento" required style="flex:1 1 240px">
-        <button class="btn primary" type="submit">Agregar</button>
-      </form>
-    </div>
+        <div class="card">
+          <h3 class="sec">Mis medicinas y suplementos</h3>
+          <p class="muted" style="margin:0 0 var(--s3); font-size:var(--fs-sm)">Todas van en una sola tarea diaria. Edita un nombre y sal del campo para guardarlo.</p>
+          <ul class="medList" id="medList"></ul>
+          <form class="formRow" id="medForm">
+            <input type="text" id="medNew" class="grow" maxlength="80" placeholder="Agregar medicina o suplemento" aria-label="Nueva medicina o suplemento" required>
+            <button class="btn" type="submit">Agregar</button>
+          </form>
+        </div>
 
-    <div class="card">
-      <h3 class="sec">Sin marcar en los últimos 7 días</h3>
-      <div id="pendingList"></div>
+        <div class="card">
+          <h3 class="sec">Sin marcar en los últimos 7 días</h3>
+          <div id="pendingList"></div>
+        </div>
+      </div>
     </div>
   </section>
 
   <!-- PLANEAR -->
   <section class="panel" id="panel-planear" role="tabpanel" aria-labelledby="tab-planear" hidden>
-    <div class="card">
+    <div class="card hero">
       <div class="dayHead">
-        <button class="btn" type="button" data-shift="-1" aria-label="Día anterior">←</button>
+        <button class="btn icon" type="button" data-shift="-1" aria-label="Día anterior">←</button>
         <div class="info">
           <h2 id="planTitle"></h2>
           <div class="score">Agrega aquí lo de ese día. Lo que tenga lugar con coordenadas se puede acomodar en el trayecto más corto.</div>
         </div>
-        <button class="btn" type="button" data-shift="1" aria-label="Día siguiente">→</button>
+        <button class="btn icon" type="button" data-shift="1" aria-label="Día siguiente">→</button>
       </div>
       <div class="formRow">
         <label class="pick">Fecha <input type="date" id="planDate"></label>
         <label class="pick">Salgo de casa a las <input type="time" id="startTime"></label>
         <button class="btn primary" id="optBtn" type="button">Optimizar trayecto</button>
-        <span class="muted" id="planMsg" role="status"></span>
+        <span class="muted" id="planMsg" role="status" style="font-size:var(--fs-sm)"></span>
       </div>
-      <div id="routeBox" style="margin-top:14px"></div>
+      <div id="routeBox" style="margin-top:var(--s4)"></div>
     </div>
 
-    <div class="card">
-      <h3 class="sec">Casa (punto de partida)</h3>
-      <div id="homeInfo" class="muted"></div>
-      <div class="formRow">
-        <button class="btn" id="homeGeo" type="button">Usar mi ubicación como casa</button>
-        <input type="text" inputmode="decimal" id="homeLat" placeholder="Latitud" aria-label="Latitud de casa" style="width:150px">
-        <input type="text" inputmode="decimal" id="homeLng" placeholder="Longitud" aria-label="Longitud de casa" style="width:150px">
-        <button class="btn" id="homeSave" type="button">Guardar casa</button>
-        <span id="homeMsg" class="muted" role="status"></span>
+    <div class="cols">
+      <div class="col">
+        <div class="card">
+          <h3 class="sec">Agregar tarea o lugar</h3>
+          <form id="pForm" novalidate>
+            <div class="formGrid">
+              <input type="text" id="pText" maxlength="200" class="wide" placeholder="Qué hay que hacer" aria-label="Qué hacer" required>
+              <input type="time" id="pTime" aria-label="Hora (opcional)" title="Hora (opcional). Al optimizar el trayecto se recalcula.">
+              <input type="number" id="pDur" min="0" max="600" step="5" value="15" aria-label="Duración en minutos" title="Duración en minutos">
+              <input type="text" id="pName" maxlength="120" class="wide" placeholder="Lugar (nombre)" aria-label="Nombre del lugar">
+              <input type="text" inputmode="decimal" id="pLat" placeholder="Latitud" aria-label="Latitud del lugar">
+              <input type="text" inputmode="decimal" id="pLng" placeholder="Longitud" aria-label="Longitud del lugar">
+              <input type="time" id="pOpen" aria-label="Abre a las" title="Abre a las">
+              <input type="time" id="pClose" aria-label="Cierra a las" title="Cierra a las">
+            </div>
+            <div class="formRow">
+              <button class="btn" type="submit">Agregar</button>
+              <a class="btn" id="findLink" target="_blank" rel="noopener" href="https://www.google.com/maps">Buscar lugar en Google Maps</a>
+              <span class="warn" id="pMsg" role="alert"></span>
+            </div>
+            <p class="note">Para el trayecto, copia las coordenadas en Google Maps (clic derecho sobre el lugar) y pégalas en Latitud: se reparten solas en los dos campos.</p>
+          </form>
+        </div>
+
+        <div class="card">
+          <h3 class="sec">Tareas de este día</h3>
+          <ul class="tasks" id="planList"></ul>
+        </div>
       </div>
-      <p class="muted" style="margin:8px 0 0">Puedes pegar las dos coordenadas juntas, tal como las copia Google Maps (ej. 19.4326, -99.1332).</p>
-    </div>
 
-    <div class="card">
-      <h3 class="sec">Agregar tarea o lugar</h3>
-      <form id="pForm" novalidate>
-        <div class="formGrid">
-          <input type="text" id="pText" maxlength="200" class="wide" placeholder="Qué hay que hacer" aria-label="Qué hacer" required>
-          <input type="time" id="pTime" aria-label="Hora (opcional)" title="Hora (opcional). Al optimizar el trayecto se recalcula.">
-          <input type="number" id="pDur" min="0" max="600" step="5" value="15" aria-label="Duración en minutos" title="Duración en minutos">
-          <input type="text" id="pName" maxlength="120" class="wide" placeholder="Lugar (nombre)" aria-label="Nombre del lugar">
-          <input type="text" inputmode="decimal" id="pLat" placeholder="Latitud" aria-label="Latitud del lugar">
-          <input type="text" inputmode="decimal" id="pLng" placeholder="Longitud" aria-label="Longitud del lugar">
-          <input type="time" id="pOpen" aria-label="Abre a las" title="Abre a las">
-          <input type="time" id="pClose" aria-label="Cierra a las" title="Cierra a las">
+      <div class="col">
+        <div class="card">
+          <h3 class="sec">Casa (punto de partida)</h3>
+          <div id="homeInfo" class="muted" style="font-size:var(--fs-sm)"></div>
+          <div class="formRow">
+            <button class="btn" id="homeGeo" type="button">Usar mi ubicación como casa</button>
+          </div>
+          <div class="formRow">
+            <input type="text" inputmode="decimal" id="homeLat" class="w-coord" placeholder="Latitud" aria-label="Latitud de casa">
+            <input type="text" inputmode="decimal" id="homeLng" class="w-coord" placeholder="Longitud" aria-label="Longitud de casa">
+            <button class="btn" id="homeSave" type="button">Guardar casa</button>
+          </div>
+          <span id="homeMsg" class="muted" role="status" style="display:block; margin-top:var(--s2); font-size:var(--fs-sm)"></span>
+          <p class="note">Puedes pegar las dos coordenadas juntas, tal como las copia Google Maps (ej. 19.4326, -99.1332).</p>
         </div>
-        <div class="formRow">
-          <button class="btn primary" type="submit">Agregar</button>
-          <a class="btn" id="findLink" target="_blank" rel="noopener" href="https://www.google.com/maps">Buscar lugar en Google Maps</a>
-          <span class="warn" id="pMsg" role="alert"></span>
-        </div>
-        <p class="muted" style="margin:8px 0 0">Para el trayecto, copia las coordenadas en Google Maps (clic derecho sobre el lugar) y pégalas en Latitud: se reparten solas en los dos campos.</p>
-      </form>
-    </div>
-
-    <div class="card">
-      <h3 class="sec">Tareas de este día</h3>
-      <ul class="tasks" id="planList"></ul>
+      </div>
     </div>
   </section>
 
   <!-- MES -->
   <section class="panel" id="panel-mes" role="tabpanel" aria-labelledby="tab-mes" hidden>
     <div class="toolbar">
-      <button class="btn" type="button" data-nav="-1" aria-label="Mes anterior">←</button>
+      <button class="btn icon" type="button" data-nav="-1" aria-label="Mes anterior">←</button>
       <h2 id="monthLabel"></h2>
-      <button class="btn" type="button" data-nav="1" aria-label="Mes siguiente">→</button>
+      <button class="btn icon" type="button" data-nav="1" aria-label="Mes siguiente">→</button>
       <button class="btn" id="monthTodayBtn" type="button">Hoy</button>
     </div>
     <div class="tablewrap" tabindex="0" role="region" aria-label="Tabla del mes, se desplaza hacia los lados">
@@ -422,47 +593,59 @@ details textarea{width:100%; min-height:90px; margin-top:8px; font:12px ui-monos
         <div id="weekBars"></div>
       </div>
     </div>
-    <div class="card" style="margin-top:16px">
+    <div class="card">
       <h3 class="sec">Tendencia diaria (últimos 30 días con datos)</h3>
       <div id="lineChart"></div>
     </div>
   </section>
 
-  <details id="helpBox">
-    <summary>Cómo usar el panel</summary>
-    <ul class="help">
-      <li><b>Mi día:</b> resumen, agenda, correos y tareas con fecha. Pulsa Actualizar para leer tu calendario y tu correo.</li>
-      <li><b>Hoy:</b> toca el cuadro de cada tarea para pasar de sin marcar a ✓ hecha y a ✕ no hecha. Cambia la hora en su campo. En tus tareas, ✎ edita el texto y × la quita.</li>
-      <li><b>Planear:</b> agrega lo de un día con su lugar. Pega las coordenadas de Google Maps y pulsa Optimizar trayecto.</li>
-      <li><b>Mes y Estadísticas:</b> la tabla del mes comparte las mismas marcas; las estadísticas solo cuentan lo marcado.</li>
-      <li><b>Deshacer:</b> al quitar algo aparece un aviso abajo con Deshacer durante unos segundos.</li>
-      <li><b>Respaldo:</b> en Ajustes puedes copiar o descargar tus datos y volver a cargarlos.</li>
-    </ul>
-  </details>
+  <div class="foot">
+    <details id="helpBox">
+      <summary>Cómo usar el panel</summary>
+      <div class="body">
+        <ul class="help">
+          <li><b>Mi día:</b> resumen, agenda, correos y tareas con fecha. Pulsa Actualizar para leer tu calendario y tu correo.</li>
+          <li><b>Hoy:</b> toca el cuadro de cada tarea para pasar de sin marcar a ✓ hecha y a ✕ no hecha. Cambia la hora en su campo. En tus tareas, ✎ edita el texto y × la quita.</li>
+          <li><b>Planear:</b> agrega lo de un día con su lugar. Pega las coordenadas de Google Maps y pulsa Optimizar trayecto.</li>
+          <li><b>Mes y Estadísticas:</b> la tabla del mes comparte las mismas marcas; las estadísticas solo cuentan lo marcado.</li>
+          <li><b>Deshacer:</b> al quitar algo aparece un aviso abajo con Deshacer durante unos segundos.</li>
+          <li><b>Respaldo:</b> en Ajustes puedes copiar o descargar tus datos y volver a cargarlos.</li>
+        </ul>
+      </div>
+    </details>
 
-  <details id="settingsBox">
-    <summary>Ajustes de trayecto y respaldo</summary>
-    <div class="formRow" style="margin-top:8px">
-      <label class="pick">Velocidad promedio (km/h) <input type="number" id="setSpeed" min="5" max="80" step="1" style="width:90px"></label>
-      <label class="pick">Minutos de estacionarse por parada <input type="number" id="setPark" min="0" max="60" step="1" style="width:90px"></label>
-      <label class="pick">Traslado desde/hasta casa si no hay ubicación (min) <input type="number" id="setHome" min="0" max="240" step="5" style="width:90px"></label>
-    </div>
-    <p class="muted" id="storeNote"></p>
-    <div class="backRow">
-      <button class="btn" id="copyBtn" type="button">Copiar respaldo</button>
-      <button class="btn" id="dlJsonBtn" type="button">Descargar respaldo (.json)</button>
-      <button class="btn" id="dlCsvBtn" type="button">Descargar historial (.csv)</button>
-    </div>
-    <div class="backRow">
-      <label class="btn" for="fileIn">Cargar archivo de respaldo…</label>
-      <input type="file" id="fileIn" class="sr" accept=".json,application/json,text/plain">
-      <button class="btn" id="restoreBtn" type="button">Restaurar desde el cuadro</button>
-      <button class="btn" id="prevBtn" type="button">Recuperar copia anterior</button>
-      <button class="btn danger" id="resetBtn" type="button">Borrar todo</button>
-    </div>
-    <p class="muted" id="backMsg" role="status" style="margin:8px 0 0"></p>
-    <textarea id="backup" aria-label="Respaldo en JSON" spellcheck="false"></textarea>
-  </details>
+    <details id="settingsBox">
+      <summary>Ajustes de trayecto y respaldo</summary>
+      <div class="body">
+        <div class="setGroup">
+          <h3 class="sec">Trayecto</h3>
+          <div class="formRow flush">
+            <label class="pick">Velocidad promedio (km/h) <input type="number" id="setSpeed" class="w-num" min="5" max="80" step="1"></label>
+            <label class="pick">Minutos de estacionarse por parada <input type="number" id="setPark" class="w-num" min="0" max="60" step="1"></label>
+            <label class="pick">Traslado desde/hasta casa si no hay ubicación (min) <input type="number" id="setHome" class="w-num" min="0" max="240" step="5"></label>
+          </div>
+        </div>
+        <div class="setGroup">
+          <h3 class="sec">Respaldo</h3>
+          <p class="muted" id="storeNote" style="margin:0"></p>
+          <div class="backRow">
+            <button class="btn" id="copyBtn" type="button">Copiar respaldo</button>
+            <button class="btn" id="dlJsonBtn" type="button">Descargar respaldo (.json)</button>
+            <button class="btn" id="dlCsvBtn" type="button">Descargar historial (.csv)</button>
+          </div>
+          <div class="backRow">
+            <label class="btn" for="fileIn">Cargar archivo de respaldo…</label>
+            <input type="file" id="fileIn" class="sr" accept=".json,application/json,text/plain">
+            <button class="btn" id="restoreBtn" type="button">Restaurar desde el cuadro</button>
+            <button class="btn" id="prevBtn" type="button">Recuperar copia anterior</button>
+            <button class="btn danger" id="resetBtn" type="button">Borrar todo</button>
+          </div>
+          <p class="muted" id="backMsg" role="status" style="margin:var(--s2) 0 0"></p>
+          <textarea id="backup" aria-label="Respaldo en JSON" spellcheck="false"></textarea>
+        </div>
+      </div>
+    </details>
+  </div>
 </div>
 
 <div class="toast" id="toast" role="status" aria-live="polite" hidden>
@@ -1339,8 +1522,8 @@ details textarea{width:100%; min-height:90px; margin-top:8px; font:12px ui-monos
     }
     return '<svg viewBox="0 0 140 140" width="160" height="160" role="img" aria-label="Cumplimiento global: '+(s.success == null ? "sin datos" : Math.round(s.success)+"% de éxito")+'">' +
       '<circle cx="70" cy="70" r="'+r+'" fill="none" stroke-width="18" style="stroke:var(--track)"/>' +
-      seg(s.done, "var(--accent)", 0) +
-      seg(s.missed, "var(--miss-ink)", s.done / total * C) +
+      seg(s.done, "var(--ok)", 0) +
+      seg(s.missed, "var(--err)", s.done / total * C) +
       seg(s.unmarked, "var(--line)", (s.done + s.missed) / total * C) +
       '<text class="big" x="70" y="77" text-anchor="middle">' + (s.success == null ? "—" : Math.round(s.success) + "%") + '</text>' +
       '</svg>';
@@ -1349,7 +1532,7 @@ details textarea{width:100%; min-height:90px; margin-top:8px; font:12px ui-monos
   function hbars(tasks){
     if (!tasks.length) return '<p class="muted">Aún no hay tareas marcadas.</p>';
     return tasks.slice().sort(function(a, b){ return a.pct - b.pct || b.total - a.total; }).map(function(t){
-      var col = t.pct < 50 ? "var(--miss-ink)" : "var(--accent)";
+      var col = t.pct < 50 ? "var(--err)" : "var(--ok)";
       return '<div class="hb"><div class="hb-top"><span>'+esc(t.display)+'</span><span>'+Math.round(t.pct)+'% · '+t.done+'/'+t.total+'</span></div>' +
         '<div class="track"><div class="fill" style="width:'+t.pct.toFixed(1)+'%; background:'+col+'"></div></div></div>';
     }).join("");
@@ -1406,8 +1589,8 @@ details textarea{width:100%; min-height:90px; margin-top:8px; font:12px ui-monos
 
     $("donut").innerHTML = donutSVG(s);
     $("donutLegend").innerHTML =
-      '<div><span class="sw" style="background:var(--accent)"></span>Hechas: '+s.done+'</div>' +
-      '<div><span class="sw" style="background:var(--miss-ink)"></span>No hechas: '+s.missed+'</div>' +
+      '<div><span class="sw" style="background:var(--ok)"></span>Hechas: '+s.done+'</div>' +
+      '<div><span class="sw" style="background:var(--err)"></span>No hechas: '+s.missed+'</div>' +
       '<div><span class="sw" style="background:var(--line)"></span>Sin marcar: '+s.unmarked+'</div>';
 
     var lines = [];
